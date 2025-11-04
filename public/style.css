@@ -295,3 +295,120 @@ header p {
 .order-card .btn-small:hover {
     background: #5568d3;
 }
+
+.master-section {
+    background: #f9f9f9;
+    padding: 25px;
+    border-radius: 10px;
+    margin-bottom: 25px;
+}
+
+.master-section h3 {
+    color: #667eea;
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    align-items: end;
+}
+
+.form-row .btn-primary {
+    padding: 12px 30px;
+}
+
+.products-list,
+.bins-list {
+    display: grid;
+    gap: 15px;
+}
+
+.item-card {
+    background: white;
+    border-left: 4px solid #667eea;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.item-card .item-info {
+    flex: 1;
+}
+
+.item-card .item-info p {
+    margin: 5px 0;
+    color: #555;
+}
+
+.item-card .item-info strong {
+    color: #333;
+}
+
+.blend-grid,
+.dist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.dynamic-bin-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.dynamic-bin-item select {
+    flex: 2;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 1em;
+}
+
+.dynamic-bin-item input {
+    flex: 1;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 1em;
+}
+
+.dynamic-bin-item span {
+    font-weight: 600;
+    color: #667eea;
+}
+
+.add-bin-btn {
+    background: #28a745;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+    font-size: 0.9em;
+}
+
+.add-bin-btn:hover {
+    background: #218838;
+}
+
+.remove-bin-btn {
+    background: #dc3545;
+    color: white;
+    padding: 5px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+}
+
+.remove-bin-btn:hover {
+    background: #c82333;
+}

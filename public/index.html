@@ -17,6 +17,8 @@
             <button class="tab-btn active" onclick="showTab('orders', this)">Orders</button>
             <button class="tab-btn" onclick="showTab('create-order', this)">Create Order</button>
             <button class="tab-btn" onclick="showTab('create-plan', this)">Create Plan</button>
+            <button class="tab-btn" onclick="showTab('products-master', this)">Products Master</button>
+            <button class="tab-btn" onclick="showTab('bins-master', this)">Bins Master</button>
         </div>
 
         <div id="orders-tab" class="tab-content active">
@@ -34,11 +36,7 @@
                 <div class="form-group">
                     <label>Product Type:</label>
                     <select id="product_type" required>
-                        <option value="">Select Product</option>
-                        <option value="Wheat Flour">Wheat Flour</option>
-                        <option value="Maida">Maida</option>
-                        <option value="Suji">Suji</option>
-                        <option value="Atta">Atta</option>
+                        <option value="">Loading products...</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -69,56 +67,96 @@
                 </div>
 
                 <div class="section">
-                    <h3>A) Source Blend Configuration (Pre-Cleaning Bins)</h3>
+                    <h3>A) Source Blend Configuration</h3>
                     <p class="hint">Percentages must sum to 100%</p>
-                    
-                    <div class="blend-grid">
-                        <div class="blend-item">
-                            <label>Pre-Clean Bin 1:</label>
-                            <input type="number" id="blend_1" step="0.01" placeholder="%" required>
-                            <span>%</span>
-                        </div>
-                        <div class="blend-item">
-                            <label>Pre-Clean Bin 2:</label>
-                            <input type="number" id="blend_2" step="0.01" placeholder="%" required>
-                            <span>%</span>
-                        </div>
-                        <div class="blend-item">
-                            <label>Pre-Clean Bin 3:</label>
-                            <input type="number" id="blend_3" step="0.01" placeholder="%" required>
-                            <span>%</span>
-                        </div>
-                    </div>
+                    <div id="source-bins-container"></div>
                     <div id="blend-total" class="total-display"></div>
                 </div>
 
                 <div class="section">
-                    <h3>B) Destination Distribution (24HR Bins)</h3>
+                    <h3>B) Destination Distribution</h3>
                     <p class="hint">Quantities must sum to order total</p>
-                    
-                    <div class="dist-grid">
-                        <div class="dist-item">
-                            <label>24HR Bin 1:</label>
-                            <input type="number" id="dist_1" step="0.01" placeholder="Tons" required>
-                            <span>tons</span>
-                        </div>
-                        <div class="dist-item">
-                            <label>24HR Bin 2:</label>
-                            <input type="number" id="dist_2" step="0.01" placeholder="Tons" required>
-                            <span>tons</span>
-                        </div>
-                        <div class="dist-item">
-                            <label>24HR Bin 3:</label>
-                            <input type="number" id="dist_3" step="0.01" placeholder="Tons" required>
-                            <span>tons</span>
-                        </div>
-                    </div>
+                    <div id="destination-bins-container"></div>
                     <div id="dist-total" class="total-display"></div>
                 </div>
 
                 <button type="submit" class="btn-primary">Create Plan</button>
             </form>
             <div id="plan-message" class="message"></div>
+        </div>
+
+        <div id="products-master-tab" class="tab-content">
+            <h2>Products Master Configuration</h2>
+            
+            <div class="master-section">
+                <h3>Add New Product</h3>
+                <form id="product-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Product Name:</label>
+                            <input type="text" id="product_name" placeholder="e.g., Wheat Flour" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Initial Name:</label>
+                            <input type="text" id="initial_name" placeholder="e.g., WF" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Add Product</button>
+                    </div>
+                </form>
+                <div id="product-message" class="message"></div>
+            </div>
+
+            <div class="master-section">
+                <h3>All Products</h3>
+                <div id="products-list"></div>
+            </div>
+        </div>
+
+        <div id="bins-master-tab" class="tab-content">
+            <h2>Bins Master Configuration</h2>
+            
+            <div class="master-section">
+                <h3>Add New Bin</h3>
+                <form id="bin-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Bin Name:</label>
+                            <input type="text" id="bin_name" placeholder="e.g., Pre-Clean Bin 1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Bin Type:</label>
+                            <select id="bin_type" required>
+                                <option value="">Select Type</option>
+                                <option value="PRE_CLEAN">Pre-Clean</option>
+                                <option value="24HR">24HR</option>
+                                <option value="STORAGE">Storage</option>
+                                <option value="OTHER">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Capacity (Tons):</label>
+                            <input type="number" id="bin_capacity" step="0.01" placeholder="e.g., 500" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Current Quantity (Tons):</label>
+                            <input type="number" id="bin_current_quantity" step="0.01" placeholder="e.g., 0" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Identity Number:</label>
+                            <input type="text" id="bin_identity_number" placeholder="e.g., PC-01" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Add Bin</button>
+                    </div>
+                </form>
+                <div id="bin-message" class="message"></div>
+            </div>
+
+            <div class="master-section">
+                <h3>All Bins</h3>
+                <div id="bins-list"></div>
+            </div>
         </div>
     </div>
 

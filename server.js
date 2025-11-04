@@ -172,6 +172,92 @@ app.get('/api/plans/:order_id', (req, res) => {
   }
 });
 
+app.get('/api/products', (req, res) => {
+  try {
+    const products = db.prepare('SELECT * FROM products ORDER BY product_name').all();
+    res.json({ success: true, data: products });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/products', (req, res) => {
+  try {
+    const { product_name, initial_name } = req.body;
+    
+    if (!product_name || !initial_name) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO products (product_name, initial_name)
+      VALUES (?, ?)
+    `);
+    
+    const result = stmt.run(product_name, initial_name);
+    
+    res.json({ 
+      success: true, 
+      data: { id: result.lastInsertRowid, product_name, initial_name }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/bins', (req, res) => {
+  try {
+    const { bin_name, bin_type, capacity, current_quantity, identity_number } = req.body;
+    
+    if (!bin_name || !bin_type || !capacity || !identity_number) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO bins (bin_name, bin_type, capacity, current_quantity, identity_number)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(bin_name, bin_type, capacity, current_quantity || 0, identity_number);
+    
+    res.json({ 
+      success: true, 
+      data: { id: result.lastInsertRowid, bin_name, bin_type, capacity, current_quantity: current_quantity || 0, identity_number }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/bins/:id', (req, res) => {
+  try {
+    const { bin_name, bin_type, capacity, current_quantity, identity_number } = req.body;
+    
+    if (!bin_name || !bin_type || !capacity || !identity_number) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const stmt = db.prepare(`
+      UPDATE bins 
+      SET bin_name = ?, bin_type = ?, capacity = ?, current_quantity = ?, identity_number = ?
+      WHERE id = ?
+    `);
+    
+    const result = stmt.run(bin_name, bin_type, capacity, current_quantity || 0, identity_number, req.params.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'Bin not found' });
+    }
+    
+    res.json({ 
+      success: true, 
+      data: { id: req.params.id, bin_name, bin_type, capacity, current_quantity: current_quantity || 0, identity_number }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
