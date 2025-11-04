@@ -91,27 +91,19 @@
 
         <div id="transfer-blended-tab" class="tab-content">
             <h2>Stage 3-4: Transfer PRE→24 (BLENDED)</h2>
-            <p class="hint">Transfer blended wheat from multiple pre-cleaning bins to 24HR bins based on the plan.</p>
+            <p class="hint">Transfer blended wheat from pre-cleaning bins to 24HR bins. Control each destination bin individually with START/STOP.</p>
             
             <div class="form-group">
-                <label>Select Order:</label>
-                <select id="blended_order_id">
-                    <option value="">Loading orders...</option>
+                <label>Select Plan:</label>
+                <select id="blended_plan_id">
+                    <option value="">Loading plans...</option>
                 </select>
             </div>
 
-            <div id="blended-order-details" class="order-details"></div>
+            <div id="blended-plan-info" class="order-details" style="display: none;"></div>
 
-            <div id="blended-plan-selection" style="display: none;">
-                <div class="form-group">
-                    <label>Select Plan:</label>
-                    <select id="blended_plan_id">
-                        <option value="">Select a plan...</option>
-                    </select>
-                </div>
-                <div id="blended-plan-details"></div>
-                <button id="execute-blended-transfer" class="btn-primary" style="display: none;">Execute Transfer</button>
-            </div>
+            <div id="blended-destinations-container"></div>
+            
             <div id="blended-message" class="message"></div>
         </div>
 

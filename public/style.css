@@ -775,6 +775,12 @@ header p {
     cursor: pointer;
 }
 
+.status-transfer_pre_to_24_in_progress {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
 .status-transfer_pre_to_24_completed {
     background: #cfe2ff;
     color: #084298;
@@ -785,4 +791,145 @@ header p {
     background: #d1e7dd;
     color: #0f5132;
     border: 1px solid #badbcc;
+}
+
+.destination-transfer-item {
+    background: white;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 25px;
+    display: grid;
+    grid-template-columns: 2fr 1fr 150px;
+    gap: 25px;
+    align-items: center;
+    transition: all 0.3s ease;
+}
+
+.destination-transfer-item:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+}
+
+.transfer-info h4 {
+    color: #667eea;
+    margin-bottom: 12px;
+    font-size: 1.2em;
+    font-weight: 700;
+}
+
+.transfer-info p {
+    margin: 6px 0;
+    color: #4a5568;
+    font-size: 0.95em;
+}
+
+.blend-detail {
+    padding-left: 15px;
+    color: #718096;
+    font-size: 0.9em;
+}
+
+.transfer-status {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.status-display, .quantity-display {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.status-label, .quantity-label {
+    font-size: 0.85em;
+    color: #718096;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-value, .quantity-value {
+    font-size: 1.1em;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.status-value.transferring {
+    color: #f59e0b;
+}
+
+.status-value.completed {
+    color: #10b981;
+}
+
+.status-value.error {
+    color: #ef4444;
+}
+
+.transfer-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.btn-start {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-start:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.btn-start:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-stop {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    padding: 14px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-stop:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.btn-stop:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+@media (max-width: 992px) {
+    .destination-transfer-item {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .transfer-controls {
+        flex-direction: row;
+    }
 }

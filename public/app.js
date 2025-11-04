@@ -26,7 +26,7 @@ function showTab(tabName, clickedElement) {
         loadOrdersForPlan();
         loadBinsForPlan();
     } else if (tabName === 'transfer-blended') {
-        loadOrdersForBlendedTransfer();
+        loadPlansForBlendedTransfer();
     } else if (tabName === 'transfer-sequential') {
         loadOrdersForSequentialTransfer();
     } else if (tabName === 'products-master') {
@@ -554,52 +554,147 @@ document.getElementById('bin-form').addEventListener('submit', async (e) => {
     }
 });
 
-async function loadOrdersForBlendedTransfer() {
+async function loadPlansForBlendedTransfer() {
     try {
-        const response = await fetch(`${API_URL}/api/orders`);
-        const result = await response.json();
+        const ordersResponse = await fetch(`${API_URL}/api/orders`);
+        const ordersResult = await ordersResponse.json();
         
-        const select = document.getElementById('blended_order_id');
+        const select = document.getElementById('blended_plan_id');
         
-        if (result.success && result.data.length > 0) {
-            const plannedOrders = result.data.filter(o => o.production_stage === 'PLANNED');
+        if (ordersResult.success && ordersResult.data.length > 0) {
+            const availableOrders = ordersResult.data.filter(o => 
+                o.production_stage === 'PLANNED' || o.production_stage === 'TRANSFER_PRE_TO_24_IN_PROGRESS'
+            );
             
-            if (plannedOrders.length > 0) {
-                select.innerHTML = '<option value="">Select an order</option>' + 
-                    plannedOrders.map(order => 
-                        `<option value="${order.id}">${order.order_number} - ${order.product_type} (${order.quantity} tons)</option>`
+            if (availableOrders.length === 0) {
+                select.innerHTML = '<option value="">No planned orders available</option>';
+                return;
+            }
+            
+            let allPlans = [];
+            for (let order of availableOrders) {
+                const plansResponse = await fetch(`${API_URL}/api/plans/${order.id}`);
+                const plansResult = await plansResponse.json();
+                
+                if (plansResult.success && plansResult.data.length > 0) {
+                    plansResult.data.forEach(plan => {
+                        allPlans.push({
+                            ...plan,
+                            order_number: order.order_number,
+                            order_id: order.id,
+                            product_type: order.product_type,
+                            total_quantity: order.quantity
+                        });
+                    });
+                }
+            }
+            
+            if (allPlans.length > 0) {
+                select.innerHTML = '<option value="">Select a plan</option>' + 
+                    allPlans.map(plan => 
+                        `<option value="${plan.id}" data-order-id="${plan.order_id}">${plan.plan_name} (Order: ${plan.order_number})</option>`
                     ).join('');
             } else {
-                select.innerHTML = '<option value="">No planned orders available</option>';
+                select.innerHTML = '<option value="">No plans found</option>';
             }
         } else {
             select.innerHTML = '<option value="">No orders found</option>';
         }
     } catch (error) {
-        console.error('Error loading orders:', error);
+        console.error('Error loading plans:', error);
     }
 }
 
-async function loadPlansForBlendedTransfer(orderId) {
+async function showBlendedPlanInfo(planId) {
     try {
-        const response = await fetch(`${API_URL}/api/plans/${orderId}`);
-        const result = await response.json();
+        const selectEl = document.getElementById('blended_plan_id');
+        const selectedOption = selectEl.options[selectEl.selectedIndex];
+        const orderId = selectedOption.getAttribute('data-order-id');
         
-        const select = document.getElementById('blended_plan_id');
+        const plansResponse = await fetch(`${API_URL}/api/plans/${orderId}`);
+        const plansResult = await plansResponse.json();
         
-        if (result.success && result.data.length > 0) {
-            select.innerHTML = '<option value="">Select a plan</option>' + 
-                result.data.map(plan => 
-                    `<option value="${plan.id}">${plan.plan_name}</option>`
-                ).join('');
-            document.getElementById('blended-plan-selection').style.display = 'block';
-        } else {
-            select.innerHTML = '<option value="">No plans found for this order</option>';
-            document.getElementById('blended-plan-selection').style.display = 'block';
+        const ordersResponse = await fetch(`${API_URL}/api/orders/${orderId}`);
+        const ordersResult = await ordersResponse.json();
+        
+        if (plansResult.success && ordersResult.success) {
+            const plan = plansResult.data.find(p => p.id == planId);
+            const order = ordersResult.data;
+            
+            if (plan) {
+                const infoEl = document.getElementById('blended-plan-info');
+                infoEl.innerHTML = `
+                    <h4>Plan: ${plan.plan_name}</h4>
+                    <p><strong>Order Number:</strong> ${order.order_number}</p>
+                    <p><strong>Product:</strong> ${order.product_type}</p>
+                    <p><strong>Total Quantity:</strong> ${order.quantity} tons</p>
+                    <div class="plan-section">
+                        <h5>Source Blend Configuration:</h5>
+                        ${plan.source_blend.map(s => `
+                            <p>• ${s.bin_name}: ${s.percentage}% (${s.quantity} tons)</p>
+                        `).join('')}
+                    </div>
+                `;
+                infoEl.style.display = 'block';
+                
+                await renderBlendedDestinations(plan, orderId);
+            }
         }
     } catch (error) {
-        console.error('Error loading plans:', error);
+        console.error('Error loading plan details:', error);
     }
+}
+
+async function renderBlendedDestinations(plan, orderId) {
+    const container = document.getElementById('blended-destinations-container');
+    const binsResponse = await fetch(`${API_URL}/api/bins`);
+    const binsResult = await binsResponse.json();
+    
+    if (!binsResult.success) return;
+    
+    const allBins = binsResult.data;
+    
+    container.innerHTML = `
+        <div class="section">
+            <h3>Destination 24HR Bins - Individual Transfer Control</h3>
+            <p class="hint">Click START to begin transferring to a bin, then STOP when you want to finish.</p>
+            <div id="destinations-list">
+                ${plan.destination_distribution.map(dest => {
+                    const bin = allBins.find(b => b.id === dest.bin_id);
+                    const binName = bin ? bin.bin_name : `Bin ${dest.bin_id}`;
+                    const binIdentity = bin ? bin.identity_number : '';
+                    
+                    return `
+                        <div class="destination-transfer-item" data-dest-bin-id="${dest.bin_id}" data-plan-id="${plan.id}" data-order-id="${orderId}" data-target-quantity="${dest.quantity}">
+                            <div class="transfer-info">
+                                <h4>${binName} (${binIdentity})</h4>
+                                <p><strong>Target Quantity:</strong> ${dest.quantity} tons</p>
+                                <p><strong>Blend Sources:</strong></p>
+                                ${plan.source_blend.map(s => {
+                                    const contribution = (s.percentage / 100) * dest.quantity;
+                                    return `<p class="blend-detail">• ${s.bin_name}: ${s.percentage}% = ${contribution.toFixed(2)} tons</p>`;
+                                }).join('')}
+                            </div>
+                            <div class="transfer-status">
+                                <div class="status-display">
+                                    <span class="status-label">Status:</span>
+                                    <span class="status-value">Ready</span>
+                                </div>
+                                <div class="quantity-display">
+                                    <span class="quantity-label">Transferred:</span>
+                                    <span class="quantity-value">0 tons</span>
+                                </div>
+                            </div>
+                            <div class="transfer-controls">
+                                <button class="btn-start" onclick="startBlendedTransfer('${dest.bin_id}', '${plan.id}', '${orderId}')">START</button>
+                                <button class="btn-stop" onclick="stopBlendedTransfer('${dest.bin_id}', '${plan.id}', '${orderId}')" style="display: none;">STOP</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
 }
 
 async function showBlendedPlanDetails(planId) {
@@ -637,86 +732,117 @@ async function showBlendedPlanDetails(planId) {
     }
 }
 
-document.getElementById('blended_order_id').addEventListener('change', async function() {
-    const orderId = this.value;
-    const detailsEl = document.getElementById('blended-order-details');
-    
-    if (!orderId) {
-        detailsEl.innerHTML = '';
-        document.getElementById('blended-plan-selection').style.display = 'none';
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_URL}/api/orders/${orderId}`);
-        const result = await response.json();
-        
-        if (result.success) {
-            const order = result.data;
-            detailsEl.innerHTML = `
-                <h4>Order Details</h4>
-                <p><strong>Order Number:</strong> ${order.order_number}</p>
-                <p><strong>Product:</strong> ${order.product_type}</p>
-                <p><strong>Total Quantity:</strong> ${order.quantity} tons</p>
-                <p><strong>Status:</strong> <span class="status-badge">${order.production_stage}</span></p>
-            `;
-        }
-    } catch (error) {
-        console.error('Error:', error);
-    }
-    
-    await loadPlansForBlendedTransfer(orderId);
-});
-
 document.getElementById('blended_plan_id').addEventListener('change', function() {
     const planId = this.value;
     if (planId) {
-        showBlendedPlanDetails(planId);
+        showBlendedPlanInfo(planId);
     } else {
-        document.getElementById('blended-plan-details').innerHTML = '';
-        document.getElementById('execute-blended-transfer').style.display = 'none';
+        document.getElementById('blended-plan-info').style.display = 'none';
+        document.getElementById('blended-destinations-container').innerHTML = '';
     }
 });
 
-document.getElementById('execute-blended-transfer').addEventListener('click', async function() {
-    const orderId = document.getElementById('blended_order_id').value;
-    const planId = document.getElementById('blended_plan_id').value;
+async function startBlendedTransfer(destBinId, planId, orderId) {
+    const item = document.querySelector(`[data-dest-bin-id="${destBinId}"][data-plan-id="${planId}"]`);
+    if (!item) return;
     
-    if (!orderId || !planId) {
-        alert('Please select both order and plan');
-        return;
-    }
+    const startBtn = item.querySelector('.btn-start');
+    const stopBtn = item.querySelector('.btn-stop');
+    const statusValue = item.querySelector('.status-value');
     
-    if (!confirm('Execute blended transfer? This will update all bin quantities.')) {
-        return;
-    }
+    startBtn.disabled = true;
+    statusValue.textContent = 'Transferring...';
+    statusValue.className = 'status-value transferring';
     
     try {
-        const response = await fetch(`${API_URL}/api/transfers/blended`, {
+        const response = await fetch(`${API_URL}/api/transfers/blended/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ order_id: parseInt(orderId), plan_id: parseInt(planId) })
+            body: JSON.stringify({ 
+                order_id: parseInt(orderId), 
+                plan_id: parseInt(planId),
+                destination_bin_id: parseInt(destBinId)
+            })
         });
         
         const result = await response.json();
-        const messageEl = document.getElementById('blended-message');
         
         if (result.success) {
+            startBtn.style.display = 'none';
+            stopBtn.style.display = 'inline-block';
+            statusValue.textContent = 'In Progress';
+            
+            const messageEl = document.getElementById('blended-message');
             messageEl.className = 'message success';
-            messageEl.textContent = `Transfer completed successfully! ${result.data.total_quantity} tons transferred.`;
-            setTimeout(() => {
-                showTab('orders', document.querySelector('[onclick*="orders"]'));
-            }, 2000);
+            messageEl.textContent = `Transfer started for bin ${destBinId}`;
+            setTimeout(() => messageEl.style.display = 'none', 3000);
         } else {
-            messageEl.className = 'message error';
-            messageEl.textContent = `Error: ${result.error}`;
+            throw new Error(result.error);
         }
     } catch (error) {
+        startBtn.disabled = false;
+        statusValue.textContent = 'Error';
+        statusValue.className = 'status-value error';
+        
         const messageEl = document.getElementById('blended-message');
         messageEl.className = 'message error';
         messageEl.textContent = `Error: ${error.message}`;
     }
-});
+}
+
+async function stopBlendedTransfer(destBinId, planId, orderId) {
+    const item = document.querySelector(`[data-dest-bin-id="${destBinId}"][data-plan-id="${planId}"]`);
+    if (!item) return;
+    
+    const startBtn = item.querySelector('.btn-start');
+    const stopBtn = item.querySelector('.btn-stop');
+    const statusValue = item.querySelector('.status-value');
+    const quantityValue = item.querySelector('.quantity-value');
+    
+    if (!confirm('Stop the transfer for this bin?')) {
+        return;
+    }
+    
+    stopBtn.disabled = true;
+    statusValue.textContent = 'Stopping...';
+    
+    try {
+        const response = await fetch(`${API_URL}/api/transfers/blended/stop`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                order_id: parseInt(orderId), 
+                plan_id: parseInt(planId),
+                destination_bin_id: parseInt(destBinId)
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            stopBtn.style.display = 'none';
+            startBtn.style.display = 'none';
+            statusValue.textContent = 'Completed';
+            statusValue.className = 'status-value completed';
+            quantityValue.textContent = `${result.data.transferred_quantity} tons`;
+            
+            const messageEl = document.getElementById('blended-message');
+            messageEl.className = 'message success';
+            messageEl.textContent = `Transfer completed for bin ${destBinId}: ${result.data.transferred_quantity} tons transferred`;
+            setTimeout(() => messageEl.style.display = 'none', 3000);
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (error) {
+        stopBtn.disabled = false;
+        statusValue.textContent = 'Error';
+        statusValue.className = 'status-value error';
+        
+        const messageEl = document.getElementById('blended-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
+    }
+}
 
 async function loadOrdersForSequentialTransfer() {
     try {

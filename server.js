@@ -258,6 +258,149 @@ app.put('/api/bins/:id', (req, res) => {
   }
 });
 
+app.post('/api/transfers/blended/start', (req, res) => {
+  try {
+    const { order_id, plan_id, destination_bin_id } = req.body;
+    
+    if (!order_id || !plan_id || !destination_bin_id) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const plan = db.prepare('SELECT * FROM production_plans WHERE id = ?').get(plan_id);
+    if (!plan) {
+      return res.status(404).json({ success: false, error: 'Plan not found' });
+    }
+
+    const destDistribution = db.prepare(
+      'SELECT * FROM plan_destination_distribution WHERE plan_id = ? AND destination_bin_id = ?'
+    ).get(plan_id, destination_bin_id);
+    
+    if (!destDistribution) {
+      return res.status(404).json({ success: false, error: 'Destination bin not found in plan' });
+    }
+
+    const existingTransfer = db.prepare(
+      'SELECT * FROM destination_bin_transfers WHERE plan_id = ? AND destination_bin_id = ?'
+    ).get(plan_id, destination_bin_id);
+
+    if (existingTransfer && existingTransfer.status === 'IN_PROGRESS') {
+      return res.status(400).json({ success: false, error: 'Transfer already in progress for this bin' });
+    }
+
+    if (existingTransfer && existingTransfer.status === 'COMPLETED') {
+      return res.status(400).json({ success: false, error: 'Transfer already completed for this bin' });
+    }
+
+    if (existingTransfer) {
+      const updateStmt = db.prepare(`
+        UPDATE destination_bin_transfers 
+        SET status = 'IN_PROGRESS', started_at = CURRENT_TIMESTAMP 
+        WHERE id = ?
+      `);
+      updateStmt.run(existingTransfer.id);
+    } else {
+      const insertStmt = db.prepare(`
+        INSERT INTO destination_bin_transfers 
+        (order_id, plan_id, destination_bin_id, status, target_quantity, started_at)
+        VALUES (?, ?, ?, 'IN_PROGRESS', ?, CURRENT_TIMESTAMP)
+      `);
+      insertStmt.run(order_id, plan_id, destination_bin_id, destDistribution.distribution_quantity);
+    }
+
+    const allTransfers = db.prepare(
+      'SELECT * FROM destination_bin_transfers WHERE plan_id = ?'
+    ).all(plan_id);
+    
+    const hasInProgress = allTransfers.some(t => t.status === 'IN_PROGRESS');
+    
+    if (hasInProgress) {
+      const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(order_id);
+      if (order && order.production_stage === 'PLANNED') {
+        const updateOrderStatus = db.prepare(`
+          UPDATE orders SET production_stage = 'TRANSFER_PRE_TO_24_IN_PROGRESS' WHERE id = ?
+        `);
+        updateOrderStatus.run(order_id);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      data: { 
+        status: 'IN_PROGRESS',
+        destination_bin_id
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/transfers/blended/stop', (req, res) => {
+  try {
+    const { order_id, plan_id, destination_bin_id } = req.body;
+    
+    if (!order_id || !plan_id || !destination_bin_id) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const transfer = db.prepare(
+      'SELECT * FROM destination_bin_transfers WHERE plan_id = ? AND destination_bin_id = ?'
+    ).get(plan_id, destination_bin_id);
+
+    if (!transfer) {
+      return res.status(404).json({ success: false, error: 'Transfer not found' });
+    }
+
+    if (transfer.status !== 'IN_PROGRESS') {
+      return res.status(400).json({ success: false, error: 'Transfer is not in progress' });
+    }
+
+    const sourceBlends = db.prepare('SELECT * FROM plan_source_blend WHERE plan_id = ?').all(plan_id);
+    const targetQuantity = transfer.target_quantity;
+
+    const updateSourceBin = db.prepare('UPDATE bins SET current_quantity = current_quantity - ? WHERE id = ?');
+    const updateDestBin = db.prepare('UPDATE bins SET current_quantity = current_quantity + ? WHERE id = ?');
+
+    sourceBlends.forEach(source => {
+      const contribution = (source.blend_percentage / 100) * targetQuantity;
+      updateSourceBin.run(contribution, source.source_bin_id);
+    });
+    
+    updateDestBin.run(targetQuantity, destination_bin_id);
+
+    const updateTransfer = db.prepare(`
+      UPDATE destination_bin_transfers 
+      SET status = 'COMPLETED', transferred_quantity = ?, completed_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `);
+    updateTransfer.run(targetQuantity, transfer.id);
+
+    const allTransfers = db.prepare(
+      'SELECT * FROM destination_bin_transfers WHERE plan_id = ?'
+    ).all(plan_id);
+    
+    const allCompleted = allTransfers.every(t => t.status === 'COMPLETED');
+    
+    if (allCompleted) {
+      const updateOrderStatus = db.prepare(`
+        UPDATE orders SET production_stage = 'TRANSFER_PRE_TO_24_COMPLETED' WHERE id = ?
+      `);
+      updateOrderStatus.run(order_id);
+    }
+
+    res.json({ 
+      success: true, 
+      data: { 
+        status: 'COMPLETED',
+        transferred_quantity: targetQuantity,
+        all_transfers_completed: allCompleted
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.post('/api/transfers/blended', (req, res) => {
   try {
     const { order_id, plan_id } = req.body;

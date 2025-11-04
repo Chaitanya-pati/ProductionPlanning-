@@ -92,6 +92,21 @@ db.exec(`
     FOREIGN KEY (source_bin_id) REFERENCES bins(id),
     FOREIGN KEY (destination_bin_id) REFERENCES bins(id)
   );
+
+  CREATE TABLE IF NOT EXISTS destination_bin_transfers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    plan_id INTEGER NOT NULL,
+    destination_bin_id INTEGER NOT NULL,
+    status TEXT DEFAULT 'READY',
+    target_quantity REAL NOT NULL,
+    transferred_quantity REAL DEFAULT 0,
+    started_at DATETIME,
+    completed_at DATETIME,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (plan_id) REFERENCES production_plans(id),
+    FOREIGN KEY (destination_bin_id) REFERENCES bins(id)
+  );
 `);
 
 try {
