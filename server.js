@@ -262,6 +262,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Flour Mill ERP running on http://0.0.0.0:${PORT}`);
+  console.log(`Server is listening and ready to accept connections`);
 });
