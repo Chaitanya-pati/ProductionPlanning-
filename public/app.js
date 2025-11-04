@@ -167,44 +167,129 @@ async function loadBinsForPlan() {
     }
 }
 
+let sourceRowCounter = 0;
+
 function renderSourceBins() {
     const container = document.getElementById('source-bins-container');
+    container.innerHTML = '';
+    updateBlendTotal();
+}
+
+function addSourceBinRow() {
     if (sourceBins.length === 0) {
-        container.innerHTML = '<p style="color: #666;">No PRE_CLEAN bins found. Please add bins in Bins Master.</p>';
+        alert('No PRE_CLEAN bins found. Please add bins in Bins Master.');
         return;
     }
     
-    container.innerHTML = sourceBins.map((bin, index) => `
-        <div class="dynamic-bin-item">
-            <label>${bin.bin_name} (${bin.identity_number}):</label>
-            <input type="number" class="source-blend-input" data-bin-id="${bin.id}" step="0.01" placeholder="%" required>
-            <span>%</span>
-        </div>
-    `).join('');
+    const container = document.getElementById('source-bins-container');
+    const rowId = `source-row-${sourceRowCounter++}`;
+    const orderTotal = parseFloat(document.getElementById('order-details').getAttribute('data-total')) || 0;
     
-    document.querySelectorAll('.source-blend-input').forEach(input => {
-        input.addEventListener('input', updateBlendTotal);
+    const availableBins = sourceBins.filter(bin => {
+        const existingSelects = container.querySelectorAll('.source-bin-select');
+        const selectedIds = Array.from(existingSelects).map(s => s.value).filter(v => v);
+        return !selectedIds.includes(bin.id.toString());
+    });
+    
+    if (availableBins.length === 0) {
+        alert('All PRE_CLEAN bins have been added.');
+        return;
+    }
+    
+    const row = document.createElement('div');
+    row.className = 'dynamic-bin-item';
+    row.id = rowId;
+    row.innerHTML = `
+        <select class="source-bin-select" data-row-id="${rowId}" required>
+            <option value="">Select Bin</option>
+            ${sourceBins.map(bin => `<option value="${bin.id}">${bin.bin_name} (${bin.identity_number})</option>`).join('')}
+        </select>
+        <input type="number" class="source-percentage-input" data-row-id="${rowId}" step="0.01" placeholder="%" required>
+        <span>%</span>
+        <input type="number" class="source-quantity-display" data-row-id="${rowId}" step="0.01" placeholder="Tons" readonly>
+        <span>tons</span>
+        <button type="button" class="remove-bin-btn" onclick="removeSourceBinRow('${rowId}')">Remove</button>
+    `;
+    
+    container.appendChild(row);
+    
+    const select = row.querySelector('.source-bin-select');
+    const percentInput = row.querySelector('.source-percentage-input');
+    const quantityDisplay = row.querySelector('.source-quantity-display');
+    
+    select.addEventListener('change', () => {
+        updateBlendTotal();
+    });
+    
+    percentInput.addEventListener('input', () => {
+        const percentage = parseFloat(percentInput.value) || 0;
+        const quantity = (percentage / 100) * orderTotal;
+        quantityDisplay.value = quantity.toFixed(2);
+        updateBlendTotal();
     });
 }
 
+function removeSourceBinRow(rowId) {
+    const row = document.getElementById(rowId);
+    if (row) {
+        row.remove();
+        updateBlendTotal();
+    }
+}
+
+let destRowCounter = 0;
+
 function renderDestinationBins() {
     const container = document.getElementById('destination-bins-container');
+    container.innerHTML = '';
+    updateDistTotal();
+}
+
+function addDestinationBinRow() {
     if (destinationBins.length === 0) {
-        container.innerHTML = '<p style="color: #666;">No 24HR bins found. Please add bins in Bins Master.</p>';
+        alert('No 24HR bins found. Please add bins in Bins Master.');
         return;
     }
     
-    container.innerHTML = destinationBins.map((bin, index) => `
-        <div class="dynamic-bin-item">
-            <label>${bin.bin_name} (${bin.identity_number}):</label>
-            <input type="number" class="dest-dist-input" data-bin-id="${bin.id}" step="0.01" placeholder="Tons" required>
-            <span>tons</span>
-        </div>
-    `).join('');
+    const container = document.getElementById('destination-bins-container');
+    const rowId = `dest-row-${destRowCounter++}`;
     
-    document.querySelectorAll('.dest-dist-input').forEach(input => {
-        input.addEventListener('input', updateDistTotal);
+    const availableBins = destinationBins.filter(bin => {
+        const existingSelects = container.querySelectorAll('.dest-bin-select');
+        const selectedIds = Array.from(existingSelects).map(s => s.value).filter(v => v);
+        return !selectedIds.includes(bin.id.toString());
     });
+    
+    if (availableBins.length === 0) {
+        alert('All 24HR bins have been added.');
+        return;
+    }
+    
+    const row = document.createElement('div');
+    row.className = 'dynamic-bin-item';
+    row.id = rowId;
+    row.innerHTML = `
+        <select class="dest-bin-select" data-row-id="${rowId}" required>
+            <option value="">Select Bin</option>
+            ${destinationBins.map(bin => `<option value="${bin.id}">${bin.bin_name} (${bin.identity_number})</option>`).join('')}
+        </select>
+        <input type="number" class="dest-quantity-input" data-row-id="${rowId}" step="0.01" placeholder="Tons" required>
+        <span>tons</span>
+        <button type="button" class="remove-bin-btn" onclick="removeDestinationBinRow('${rowId}')">Remove</button>
+    `;
+    
+    container.appendChild(row);
+    
+    const quantityInput = row.querySelector('.dest-quantity-input');
+    quantityInput.addEventListener('input', updateDistTotal);
+}
+
+function removeDestinationBinRow(rowId) {
+    const row = document.getElementById(rowId);
+    if (row) {
+        row.remove();
+        updateDistTotal();
+    }
 }
 
 document.getElementById('plan_order_id').addEventListener('change', updateOrderDetails);
@@ -239,7 +324,7 @@ async function updateOrderDetails() {
 }
 
 function updateBlendTotal() {
-    const inputs = document.querySelectorAll('.source-blend-input');
+    const inputs = document.querySelectorAll('.source-percentage-input');
     let total = 0;
     inputs.forEach(input => {
         total += parseFloat(input.value) || 0;
@@ -248,7 +333,7 @@ function updateBlendTotal() {
     const displayEl = document.getElementById('blend-total');
     displayEl.textContent = `Total: ${total.toFixed(2)}%`;
     
-    if (Math.abs(total - 100) < 0.01) {
+    if (Math.abs(total - 100) < 0.01 && total > 0) {
         displayEl.className = 'total-display valid';
     } else {
         displayEl.className = 'total-display invalid';
@@ -256,7 +341,7 @@ function updateBlendTotal() {
 }
 
 function updateDistTotal() {
-    const inputs = document.querySelectorAll('.dest-dist-input');
+    const inputs = document.querySelectorAll('.dest-quantity-input');
     let total = 0;
     inputs.forEach(input => {
         total += parseFloat(input.value) || 0;
@@ -283,18 +368,26 @@ document.getElementById('plan-form').addEventListener('submit', async (e) => {
         return;
     }
     
-    const sourceInputs = document.querySelectorAll('.source-blend-input');
-    const destInputs = document.querySelectorAll('.dest-dist-input');
+    const sourceRows = document.querySelectorAll('#source-bins-container .dynamic-bin-item');
+    const destRows = document.querySelectorAll('#destination-bins-container .dynamic-bin-item');
     
-    const source_blend = Array.from(sourceInputs).map(input => ({
-        bin_id: parseInt(input.getAttribute('data-bin-id')),
-        percentage: parseFloat(input.value) || 0
-    }));
+    const source_blend = Array.from(sourceRows).map(row => {
+        const binId = row.querySelector('.source-bin-select').value;
+        const percentage = row.querySelector('.source-percentage-input').value;
+        return {
+            bin_id: parseInt(binId),
+            percentage: parseFloat(percentage) || 0
+        };
+    }).filter(item => item.bin_id);
     
-    const destination_distribution = Array.from(destInputs).map(input => ({
-        bin_id: parseInt(input.getAttribute('data-bin-id')),
-        quantity: parseFloat(input.value) || 0
-    }));
+    const destination_distribution = Array.from(destRows).map(row => {
+        const binId = row.querySelector('.dest-bin-select').value;
+        const quantity = row.querySelector('.dest-quantity-input').value;
+        return {
+            bin_id: parseInt(binId),
+            quantity: parseFloat(quantity) || 0
+        };
+    }).filter(item => item.bin_id);
     
     const planData = {
         order_id: parseInt(orderId),

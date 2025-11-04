@@ -371,6 +371,15 @@ header p {
     font-size: 1em;
 }
 
+.dynamic-bin-item select {
+    flex: 2;
+    padding: 10px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 1em;
+    background: white;
+}
+
 .dynamic-bin-item input {
     flex: 1;
     padding: 10px;
@@ -379,9 +388,15 @@ header p {
     font-size: 1em;
 }
 
+.dynamic-bin-item input[readonly] {
+    background: #f5f5f5;
+    color: #666;
+}
+
 .dynamic-bin-item span {
     font-weight: 600;
     color: #667eea;
+    white-space: nowrap;
 }
 
 .add-bin-btn {
