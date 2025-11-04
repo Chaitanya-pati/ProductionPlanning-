@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flour Mill ERP - Production Planning</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌾 Flour Mill ERP System</h1>
+            <p>Production Planning & Management</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('orders', this)">Orders</button>
+            <button class="tab-btn" onclick="showTab('create-order', this)">Create Order</button>
+            <button class="tab-btn" onclick="showTab('create-plan', this)">Create Plan</button>
+        </div>
+
+        <div id="orders-tab" class="tab-content active">
+            <h2>All Orders</h2>
+            <div id="orders-list"></div>
+        </div>
+
+        <div id="create-order-tab" class="tab-content">
+            <h2>Stage 1: Create Order</h2>
+            <form id="order-form">
+                <div class="form-group">
+                    <label>Order Number:</label>
+                    <input type="text" id="order_number" placeholder="e.g., ORD-2025-001" required>
+                </div>
+                <div class="form-group">
+                    <label>Product Type:</label>
+                    <select id="product_type" required>
+                        <option value="">Select Product</option>
+                        <option value="Wheat Flour">Wheat Flour</option>
+                        <option value="Maida">Maida</option>
+                        <option value="Suji">Suji</option>
+                        <option value="Atta">Atta</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Total Quantity (Tons):</label>
+                    <input type="number" id="quantity" step="0.01" placeholder="e.g., 100" required>
+                </div>
+                <button type="submit" class="btn-primary">Create Order</button>
+            </form>
+            <div id="order-message" class="message"></div>
+        </div>
+
+        <div id="create-plan-tab" class="tab-content">
+            <h2>Stage 2: Create Production Plan</h2>
+            
+            <div class="form-group">
+                <label>Select Order:</label>
+                <select id="plan_order_id">
+                    <option value="">Loading orders...</option>
+                </select>
+            </div>
+
+            <div id="order-details" class="order-details"></div>
+
+            <form id="plan-form">
+                <div class="form-group">
+                    <label>Plan Name:</label>
+                    <input type="text" id="plan_name" placeholder="e.g., Production Plan 2025-01" required>
+                </div>
+
+                <div class="section">
+                    <h3>A) Source Blend Configuration (Pre-Cleaning Bins)</h3>
+                    <p class="hint">Percentages must sum to 100%</p>
+                    
+                    <div class="blend-grid">
+                        <div class="blend-item">
+                            <label>Pre-Clean Bin 1:</label>
+                            <input type="number" id="blend_1" step="0.01" placeholder="%" required>
+                            <span>%</span>
+                        </div>
+                        <div class="blend-item">
+                            <label>Pre-Clean Bin 2:</label>
+                            <input type="number" id="blend_2" step="0.01" placeholder="%" required>
+                            <span>%</span>
+                        </div>
+                        <div class="blend-item">
+                            <label>Pre-Clean Bin 3:</label>
+                            <input type="number" id="blend_3" step="0.01" placeholder="%" required>
+                            <span>%</span>
+                        </div>
+                    </div>
+                    <div id="blend-total" class="total-display"></div>
+                </div>
+
+                <div class="section">
+                    <h3>B) Destination Distribution (24HR Bins)</h3>
+                    <p class="hint">Quantities must sum to order total</p>
+                    
+                    <div class="dist-grid">
+                        <div class="dist-item">
+                            <label>24HR Bin 1:</label>
+                            <input type="number" id="dist_1" step="0.01" placeholder="Tons" required>
+                            <span>tons</span>
+                        </div>
+                        <div class="dist-item">
+                            <label>24HR Bin 2:</label>
+                            <input type="number" id="dist_2" step="0.01" placeholder="Tons" required>
+                            <span>tons</span>
+                        </div>
+                        <div class="dist-item">
+                            <label>24HR Bin 3:</label>
+                            <input type="number" id="dist_3" step="0.01" placeholder="Tons" required>
+                            <span>tons</span>
+                        </div>
+                    </div>
+                    <div id="dist-total" class="total-display"></div>
+                </div>
+
+                <button type="submit" class="btn-primary">Create Plan</button>
+            </form>
+            <div id="plan-message" class="message"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
