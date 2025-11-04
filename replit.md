@@ -43,6 +43,9 @@ A production planning and management system for flour mills. This web applicatio
 9. **transfer_sequence_details** - Stores sequential transfer details
    - id, transfer_job_id, source_bin_id, sequence_order, destination_bin_id, destination_bin_sequence, quantity_transferred
 
+10. **destination_bin_transfers** - Tracks individual destination bin transfer states for PRE→24
+   - id, order_id, plan_id, destination_bin_id, status, target_quantity, transferred_quantity, started_at, stopped_at, completed_at
+
 ## Features
 
 ### Products Master Configuration
@@ -75,14 +78,19 @@ A production planning and management system for flour mills. This web applicatio
 - Updates order status to "PLANNED" upon successful plan creation
 - Supports any number of source and destination bins
 
-### Stage 3-4: Transfer PRE→24 (BLENDED)
-- Execute blended transfer from multiple PRE_CLEAN bins to 24HR bins based on the plan
-- Calculates contributions: Contribution = Blend Percentage × Destination Quantity
-- Updates bin quantities automatically:
+### Stage 3-4: Transfer PRE→24 (BLENDED with Individual Controls)
+- Select a production plan to view all destination 24HR bins
+- Individual START/STOP buttons for each destination bin
+- Real-time transfer status tracking (NOT STARTED, IN_PROGRESS, STOPPED, COMPLETED)
+- Blended transfer calculation: Contribution = Blend Percentage × Destination Quantity
+- Automatic bin quantity updates when transfer starts:
   - Deducts from source PRE_CLEAN bins based on contributions
   - Adds combined amounts to destination 24HR bins
-- Records transfer details in transfer_jobs and transfer_blend_details tables
-- Updates order status to "TRANSFER_PRE_TO_24_COMPLETED"
+- Transfer state tracking in destination_bin_transfers table
+- Order status progression:
+  - PLANNED → TRANSFER_PRE_TO_24_IN_PROGRESS (when first bin starts)
+  - TRANSFER_PRE_TO_24_IN_PROGRESS → TRANSFER_PRE_TO_24_COMPLETED (when all bins complete)
+- Plans remain visible in dropdown even when transfer is in progress
 
 ### Stage 5-6: Transfer 24→12 (SEQUENTIAL)
 - Execute sequential transfer from one 24HR bin to multiple 12HR bins
@@ -114,7 +122,9 @@ A production planning and management system for flour mills. This web applicatio
 - `GET /api/plans/:order_id` - Get plans for an order
 
 ### Transfers
-- `POST /api/transfers/blended` - Execute blended transfer (PRE→24)
+- `POST /api/transfers/blended/start` - Start blended transfer for a specific destination bin
+- `POST /api/transfers/blended/stop` - Stop blended transfer for a specific destination bin
+- `GET /api/transfers/blended/status/:planId` - Get status of all destination bin transfers
 - `POST /api/transfers/sequential` - Execute sequential transfer (24→12)
 - `GET /api/transfers/:orderId` - Get transfer history for an order
 
@@ -132,8 +142,17 @@ A production planning and management system for flour mills. This web applicatio
 ```
 
 ## Recent Changes (November 4, 2025)
-- **LATEST**: Implemented STAGE 3-4 (Transfer PRE→24 BLENDED) and STAGE 5-6 (Transfer 24→12 SEQUENTIAL)
-  - Added 3 new database tables: transfer_jobs, transfer_blend_details, transfer_sequence_details
+- **LATEST**: Enhanced Transfer PRE→24 with Individual START/STOP Controls
+  - Removed order selection from Transfer PRE→24 tab, now shows plan selection directly
+  - Added individual START/STOP buttons for each destination 24HR bin
+  - Created destination_bin_transfers table to track individual bin transfer states
+  - Implemented backend endpoints: /api/transfers/blended/start and /api/transfers/blended/stop
+  - Added real-time transfer status display showing NOT STARTED, IN_PROGRESS, STOPPED, COMPLETED
+  - Fixed critical bug: Plans now remain visible during transfer by including TRANSFER_PRE_TO_24_IN_PROGRESS status in filter
+  - Order status progression: PLANNED → TRANSFER_PRE_TO_24_IN_PROGRESS → TRANSFER_PRE_TO_24_COMPLETED
+  
+- Implemented STAGE 3-4 (Transfer PRE→24 BLENDED) and STAGE 5-6 (Transfer 24→12 SEQUENTIAL)
+  - Added 4 database tables: transfer_jobs, transfer_blend_details, transfer_sequence_details, destination_bin_transfers
   - Added 4 pre-initialized 12HR bins (301-304) with 25-ton capacity each
   - Built backend API endpoints for both transfer types with bin quantity updates
   - Created frontend UI tabs for executing transfers
@@ -157,5 +176,6 @@ A production planning and management system for flour mills. This web applicatio
 ## Production Workflow
 1. **Create Order** - Define order number, product type, and quantity (Status: CREATED)
 2. **Create Plan** - Configure source blend (PRE_CLEAN bins) and destination distribution (24HR bins) (Status: PLANNED)
-3. **Transfer PRE→24** - Execute blended transfer from PRE_CLEAN to 24HR bins (Status: TRANSFER_PRE_TO_24_COMPLETED)
+3. **Transfer PRE→24** - Select plan, then individually START/STOP each destination 24HR bin
+   - Status: PLANNED → TRANSFER_PRE_TO_24_IN_PROGRESS → TRANSFER_PRE_TO_24_COMPLETED
 4. **Transfer 24→12** - Execute sequential transfer from 24HR to 12HR bins (Status: TRANSFER_24_TO_12_COMPLETED)
