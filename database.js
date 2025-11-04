@@ -54,6 +54,44 @@ db.exec(`
     initial_name TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS transfer_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    plan_id INTEGER,
+    transfer_type TEXT NOT NULL,
+    status TEXT DEFAULT 'PENDING',
+    total_quantity REAL NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (plan_id) REFERENCES production_plans(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS transfer_blend_details (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    transfer_job_id INTEGER NOT NULL,
+    destination_bin_id INTEGER NOT NULL,
+    source_bin_id INTEGER NOT NULL,
+    source_contribution_percentage REAL NOT NULL,
+    source_contribution_tons REAL NOT NULL,
+    FOREIGN KEY (transfer_job_id) REFERENCES transfer_jobs(id),
+    FOREIGN KEY (destination_bin_id) REFERENCES bins(id),
+    FOREIGN KEY (source_bin_id) REFERENCES bins(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS transfer_sequence_details (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    transfer_job_id INTEGER NOT NULL,
+    source_bin_id INTEGER NOT NULL,
+    sequence_order INTEGER NOT NULL,
+    destination_bin_id INTEGER NOT NULL,
+    destination_bin_sequence INTEGER NOT NULL,
+    quantity_transferred REAL NOT NULL,
+    FOREIGN KEY (transfer_job_id) REFERENCES transfer_jobs(id),
+    FOREIGN KEY (source_bin_id) REFERENCES bins(id),
+    FOREIGN KEY (destination_bin_id) REFERENCES bins(id)
+  );
 `);
 
 try {
@@ -74,6 +112,10 @@ if (binCheck.count === 0) {
   initBins.run(4, '24HR Bin 1', '24HR', 300, '24HR-01');
   initBins.run(5, '24HR Bin 2', '24HR', 300, '24HR-02');
   initBins.run(6, '24HR Bin 3', '24HR', 300, '24HR-03');
+  initBins.run(301, '12HR Bin 301', '12HR', 25, '12HR-301');
+  initBins.run(302, '12HR Bin 302', '12HR', 25, '12HR-302');
+  initBins.run(303, '12HR Bin 303', '12HR', 25, '12HR-303');
+  initBins.run(304, '12HR Bin 304', '12HR', 25, '12HR-304');
 }
 
 const initProducts = db.prepare(`

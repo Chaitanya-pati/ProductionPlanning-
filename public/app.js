@@ -25,6 +25,10 @@ function showTab(tabName, clickedElement) {
     } else if (tabName === 'create-plan') {
         loadOrdersForPlan();
         loadBinsForPlan();
+    } else if (tabName === 'transfer-blended') {
+        loadOrdersForBlendedTransfer();
+    } else if (tabName === 'transfer-sequential') {
+        loadOrdersForSequentialTransfer();
     } else if (tabName === 'products-master') {
         loadProducts();
     } else if (tabName === 'bins-master') {
@@ -545,6 +549,362 @@ document.getElementById('bin-form').addEventListener('submit', async (e) => {
         }
     } catch (error) {
         const messageEl = document.getElementById('bin-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
+    }
+});
+
+async function loadOrdersForBlendedTransfer() {
+    try {
+        const response = await fetch(`${API_URL}/api/orders`);
+        const result = await response.json();
+        
+        const select = document.getElementById('blended_order_id');
+        
+        if (result.success && result.data.length > 0) {
+            const plannedOrders = result.data.filter(o => o.production_stage === 'PLANNED');
+            
+            if (plannedOrders.length > 0) {
+                select.innerHTML = '<option value="">Select an order</option>' + 
+                    plannedOrders.map(order => 
+                        `<option value="${order.id}">${order.order_number} - ${order.product_type} (${order.quantity} tons)</option>`
+                    ).join('');
+            } else {
+                select.innerHTML = '<option value="">No planned orders available</option>';
+            }
+        } else {
+            select.innerHTML = '<option value="">No orders found</option>';
+        }
+    } catch (error) {
+        console.error('Error loading orders:', error);
+    }
+}
+
+async function loadPlansForBlendedTransfer(orderId) {
+    try {
+        const response = await fetch(`${API_URL}/api/plans/${orderId}`);
+        const result = await response.json();
+        
+        const select = document.getElementById('blended_plan_id');
+        
+        if (result.success && result.data.length > 0) {
+            select.innerHTML = '<option value="">Select a plan</option>' + 
+                result.data.map(plan => 
+                    `<option value="${plan.id}">${plan.plan_name}</option>`
+                ).join('');
+            document.getElementById('blended-plan-selection').style.display = 'block';
+        } else {
+            select.innerHTML = '<option value="">No plans found for this order</option>';
+            document.getElementById('blended-plan-selection').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading plans:', error);
+    }
+}
+
+async function showBlendedPlanDetails(planId) {
+    try {
+        const orderId = document.getElementById('blended_order_id').value;
+        const response = await fetch(`${API_URL}/api/plans/${orderId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const plan = result.data.find(p => p.id == planId);
+            if (plan) {
+                const detailsEl = document.getElementById('blended-plan-details');
+                detailsEl.innerHTML = `
+                    <div class="plan-preview">
+                        <h4>Plan: ${plan.plan_name}</h4>
+                        <div class="plan-section">
+                            <h5>Source Blend:</h5>
+                            ${plan.source_blend.map(s => `
+                                <p>• ${s.bin_name}: ${s.percentage}% (${s.quantity} tons)</p>
+                            `).join('')}
+                        </div>
+                        <div class="plan-section">
+                            <h5>Destinations:</h5>
+                            ${plan.destination_distribution.map(d => `
+                                <p>• ${d.bin_name}: ${d.quantity} tons</p>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                document.getElementById('execute-blended-transfer').style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading plan details:', error);
+    }
+}
+
+document.getElementById('blended_order_id').addEventListener('change', async function() {
+    const orderId = this.value;
+    const detailsEl = document.getElementById('blended-order-details');
+    
+    if (!orderId) {
+        detailsEl.innerHTML = '';
+        document.getElementById('blended-plan-selection').style.display = 'none';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/orders/${orderId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const order = result.data;
+            detailsEl.innerHTML = `
+                <h4>Order Details</h4>
+                <p><strong>Order Number:</strong> ${order.order_number}</p>
+                <p><strong>Product:</strong> ${order.product_type}</p>
+                <p><strong>Total Quantity:</strong> ${order.quantity} tons</p>
+                <p><strong>Status:</strong> <span class="status-badge">${order.production_stage}</span></p>
+            `;
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+    
+    await loadPlansForBlendedTransfer(orderId);
+});
+
+document.getElementById('blended_plan_id').addEventListener('change', function() {
+    const planId = this.value;
+    if (planId) {
+        showBlendedPlanDetails(planId);
+    } else {
+        document.getElementById('blended-plan-details').innerHTML = '';
+        document.getElementById('execute-blended-transfer').style.display = 'none';
+    }
+});
+
+document.getElementById('execute-blended-transfer').addEventListener('click', async function() {
+    const orderId = document.getElementById('blended_order_id').value;
+    const planId = document.getElementById('blended_plan_id').value;
+    
+    if (!orderId || !planId) {
+        alert('Please select both order and plan');
+        return;
+    }
+    
+    if (!confirm('Execute blended transfer? This will update all bin quantities.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/transfers/blended`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ order_id: parseInt(orderId), plan_id: parseInt(planId) })
+        });
+        
+        const result = await response.json();
+        const messageEl = document.getElementById('blended-message');
+        
+        if (result.success) {
+            messageEl.className = 'message success';
+            messageEl.textContent = `Transfer completed successfully! ${result.data.total_quantity} tons transferred.`;
+            setTimeout(() => {
+                showTab('orders', document.querySelector('[onclick*="orders"]'));
+            }, 2000);
+        } else {
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
+        }
+    } catch (error) {
+        const messageEl = document.getElementById('blended-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
+    }
+});
+
+async function loadOrdersForSequentialTransfer() {
+    try {
+        const response = await fetch(`${API_URL}/api/orders`);
+        const result = await response.json();
+        
+        const select = document.getElementById('sequential_order_id');
+        
+        if (result.success && result.data.length > 0) {
+            const transferredOrders = result.data.filter(o => o.production_stage === 'TRANSFER_PRE_TO_24_COMPLETED');
+            
+            if (transferredOrders.length > 0) {
+                select.innerHTML = '<option value="">Select an order</option>' + 
+                    transferredOrders.map(order => 
+                        `<option value="${order.id}">${order.order_number} - ${order.product_type} (${order.quantity} tons)</option>`
+                    ).join('');
+            } else {
+                select.innerHTML = '<option value="">No orders ready for 24→12 transfer</option>';
+            }
+        } else {
+            select.innerHTML = '<option value="">No orders found</option>';
+        }
+    } catch (error) {
+        console.error('Error loading orders:', error);
+    }
+}
+
+async function load24HRBins() {
+    try {
+        const response = await fetch(`${API_URL}/api/bins`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const bins24HR = result.data.filter(b => b.bin_type === '24HR' && b.current_quantity > 0);
+            const select = document.getElementById('sequential_source_bin');
+            
+            if (bins24HR.length > 0) {
+                select.innerHTML = '<option value="">Select a bin</option>' + 
+                    bins24HR.map(bin => 
+                        `<option value="${bin.id}">${bin.bin_name} (${bin.identity_number}) - ${bin.current_quantity} tons available</option>`
+                    ).join('');
+            } else {
+                select.innerHTML = '<option value="">No 24HR bins with quantity available</option>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading bins:', error);
+    }
+}
+
+async function load12HRBinsSequence() {
+    try {
+        const response = await fetch(`${API_URL}/api/bins`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const bins12HR = result.data.filter(b => b.bin_type === '12HR');
+            const container = document.getElementById('sequential-destinations-container');
+            
+            if (bins12HR.length > 0) {
+                container.innerHTML = bins12HR.map(bin => `
+                    <div class="sequence-bin-item" data-bin-id="${bin.id}">
+                        <span class="drag-handle">☰</span>
+                        <span class="bin-info">${bin.bin_name} (${bin.identity_number})</span>
+                        <span class="bin-status">Current: ${bin.current_quantity}/${bin.capacity} tons</span>
+                        <input type="checkbox" class="bin-checkbox" value="${bin.id}" checked>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p>No 12HR bins found. Add them in Bins Master.</p>';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading bins:', error);
+    }
+}
+
+document.getElementById('sequential_order_id').addEventListener('change', async function() {
+    const orderId = this.value;
+    const detailsEl = document.getElementById('sequential-order-details');
+    
+    if (!orderId) {
+        detailsEl.innerHTML = '';
+        document.getElementById('sequential-transfer-config').style.display = 'none';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/orders/${orderId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const order = result.data;
+            detailsEl.innerHTML = `
+                <h4>Order Details</h4>
+                <p><strong>Order Number:</strong> ${order.order_number}</p>
+                <p><strong>Product:</strong> ${order.product_type}</p>
+                <p><strong>Total Quantity:</strong> ${order.quantity} tons</p>
+                <p><strong>Status:</strong> <span class="status-badge">${order.production_stage}</span></p>
+            `;
+            document.getElementById('sequential-transfer-config').style.display = 'block';
+            await load24HRBins();
+            await load12HRBinsSequence();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+});
+
+document.getElementById('sequential_source_bin').addEventListener('change', async function() {
+    const binId = this.value;
+    const detailsEl = document.getElementById('sequential-source-details');
+    
+    if (!binId) {
+        detailsEl.innerHTML = '';
+        document.getElementById('execute-sequential-transfer').style.display = 'none';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/bins`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const bin = result.data.find(b => b.id == binId);
+            if (bin) {
+                detailsEl.innerHTML = `
+                    <div class="bin-preview">
+                        <h4>Source: ${bin.bin_name}</h4>
+                        <p><strong>Available Quantity:</strong> ${bin.current_quantity} tons</p>
+                        <p><strong>Capacity:</strong> ${bin.capacity} tons</p>
+                    </div>
+                `;
+                document.getElementById('execute-sequential-transfer').style.display = 'block';
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+});
+
+document.getElementById('execute-sequential-transfer').addEventListener('click', async function() {
+    const orderId = document.getElementById('sequential_order_id').value;
+    const sourceBinId = document.getElementById('sequential_source_bin').value;
+    
+    if (!orderId || !sourceBinId) {
+        alert('Please select both order and source bin');
+        return;
+    }
+    
+    const checkedBins = Array.from(document.querySelectorAll('.bin-checkbox:checked'));
+    const destinationSequence = checkedBins.map(cb => parseInt(cb.value));
+    
+    if (destinationSequence.length === 0) {
+        alert('Please select at least one destination bin');
+        return;
+    }
+    
+    if (!confirm(`Execute sequential transfer? This will transfer from the 24HR bin to ${destinationSequence.length} selected 12HR bins.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/transfers/sequential`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                order_id: parseInt(orderId), 
+                source_bin_id: parseInt(sourceBinId),
+                destination_sequence: destinationSequence
+            })
+        });
+        
+        const result = await response.json();
+        const messageEl = document.getElementById('sequential-message');
+        
+        if (result.success) {
+            messageEl.className = 'message success';
+            messageEl.textContent = `Transfer completed! ${result.data.total_quantity} tons transferred. Remaining in source: ${result.data.remaining_in_source} tons.`;
+            setTimeout(() => {
+                showTab('orders', document.querySelector('[onclick*="orders"]'));
+            }, 2000);
+        } else {
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
+        }
+    } catch (error) {
+        const messageEl = document.getElementById('sequential-message');
         messageEl.className = 'message error';
         messageEl.textContent = `Error: ${error.message}`;
     }

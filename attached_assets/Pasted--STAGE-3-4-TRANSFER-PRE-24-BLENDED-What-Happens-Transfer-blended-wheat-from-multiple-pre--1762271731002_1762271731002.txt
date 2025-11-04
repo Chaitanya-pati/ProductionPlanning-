@@ -1,0 +1,63 @@
+ STAGE 3-4: TRANSFER PRE→24 (BLENDED)
+
+**What Happens**: Transfer blended wheat from multiple pre-cleaning bins to 24HR bins based on the plan.
+
+**How it Works**:
+- For each 24HR bin destination, calculate contribution from each pre-clean bin
+- Formula: Contribution = Blend Percentage × Destination Quantity
+- Example: To fill 24HR Bin1 (50t), take 30% × 50 = 15t from Pre-Clean 1, 40% × 50 = 20t from Pre-Clean 2, etc.
+- Transfer all together (blended)
+
+**Parameters to Capture**:
+- Plan ID (which plan to execute)
+- Source Bin ID, Blend Percentage, Contribution Quantity (calculated)
+- Destination Bin ID, Total Quantity to Fill
+- Transfer Status (PENDING, IN_PROGRESS, COMPLETED)
+- Transfer Timestamp
+
+**Database Tables**:
+- transfer_jobs: id, order_id, plan_id, transfer_type, status, total_quantity, created_at
+- transfer_blend_details: id, transfer_job_id, destination_bin_id, source_bin_id, source_contribution_percentage, source_contribution_tons
+
+**Bin Updates**:
+- Deduct from each source bin (based on contributions)
+- Add combined amount to each destination bin
+
+**Status After**: TRANSFER_PRE_TO_24_COMPLETED
+
+**Data Flow**: Select Plan → Calculate Contributions → Update Bins → Record Transfer Details
+
+---
+
+## STAGE 5-6: TRANSFER 24→12 (SEQUENTIAL)
+
+**What Happens**: Transfer wheat from one 24HR bin to multiple 12HR bins sequentially.
+
+**How it Works**:
+- User selects: Which 24HR bin to transfer from (e.g., 24HR Bin 1 with 50 tons)
+- User can arrange: Order of 12HR bins (301, 302, 303, 304) or keep default
+- System fills each 12HR bin to its capacity (25 tons) one by one
+- Remaining qty stays in 24HR bin for later transfer
+
+**Parameters to Capture**:
+- Source 24HR Bin ID (which bin to transfer from)
+- Destination 12HR Bin Sequence (order: 301→302→303→304 or custom)
+- Each destination bin ID and capacity (25t)
+- Transfer Status (PENDING, IN_PROGRESS, COMPLETED)
+- Quantity per bin transferred
+
+**Database Tables**:
+- transfer_jobs: (same as above, but transfer_type = SEQUENTIAL)
+- transfer_sequence_details: id, transfer_job_id, source_bin_id, sequence_order, destination_bin_id, destination_bin_sequence, quantity_transferred
+
+**Bin Updates**:
+- Deduct 25t from 24HR Bin 1 → Add 25t to 12HR Bin 301
+- Deduct 25t from 24HR Bin 1 → Add 25t to 12HR Bin 302
+- Repeat for bins 303, 304
+- Remaining in 24HR Bin 1
+
+**Status After**: TRANSFER_24_TO_12_COMPLETED
+
+**Data Flow**: Select 24HR Bin → Choose Sequence → Auto-fill 12HR bins → Update All Bins
+
+---

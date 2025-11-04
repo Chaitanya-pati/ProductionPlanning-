@@ -258,6 +258,207 @@ app.put('/api/bins/:id', (req, res) => {
   }
 });
 
+app.post('/api/transfers/blended', (req, res) => {
+  try {
+    const { order_id, plan_id } = req.body;
+    
+    if (!order_id || !plan_id) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const plan = db.prepare('SELECT * FROM production_plans WHERE id = ?').get(plan_id);
+    if (!plan) {
+      return res.status(404).json({ success: false, error: 'Plan not found' });
+    }
+
+    const sourceBlends = db.prepare('SELECT * FROM plan_source_blend WHERE plan_id = ?').all(plan_id);
+    const destinationDistributions = db.prepare('SELECT * FROM plan_destination_distribution WHERE plan_id = ?').all(plan_id);
+
+    const totalQuantity = destinationDistributions.reduce((sum, d) => sum + d.distribution_quantity, 0);
+
+    const insertTransferJob = db.prepare(`
+      INSERT INTO transfer_jobs (order_id, plan_id, transfer_type, status, total_quantity)
+      VALUES (?, ?, 'BLENDED', 'IN_PROGRESS', ?)
+    `);
+    const transferJobResult = insertTransferJob.run(order_id, plan_id, totalQuantity);
+    const transferJobId = transferJobResult.lastInsertRowid;
+
+    const insertBlendDetail = db.prepare(`
+      INSERT INTO transfer_blend_details 
+      (transfer_job_id, destination_bin_id, source_bin_id, source_contribution_percentage, source_contribution_tons)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    const updateSourceBin = db.prepare('UPDATE bins SET current_quantity = current_quantity - ? WHERE id = ?');
+    const updateDestBin = db.prepare('UPDATE bins SET current_quantity = current_quantity + ? WHERE id = ?');
+
+    destinationDistributions.forEach(dest => {
+      sourceBlends.forEach(source => {
+        const contribution = (source.blend_percentage / 100) * dest.distribution_quantity;
+        
+        insertBlendDetail.run(
+          transferJobId,
+          dest.destination_bin_id,
+          source.source_bin_id,
+          source.blend_percentage,
+          contribution
+        );
+
+        updateSourceBin.run(contribution, source.source_bin_id);
+      });
+      
+      updateDestBin.run(dest.distribution_quantity, dest.destination_bin_id);
+    });
+
+    const completeTransfer = db.prepare(`
+      UPDATE transfer_jobs 
+      SET status = 'COMPLETED', completed_at = CURRENT_TIMESTAMP 
+      WHERE id = ?
+    `);
+    completeTransfer.run(transferJobId);
+
+    const updateOrderStatus = db.prepare(`
+      UPDATE orders SET production_stage = 'TRANSFER_PRE_TO_24_COMPLETED' WHERE id = ?
+    `);
+    updateOrderStatus.run(order_id);
+
+    res.json({ 
+      success: true, 
+      data: { 
+        transfer_job_id: transferJobId, 
+        status: 'COMPLETED',
+        total_quantity: totalQuantity
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/transfers/sequential', (req, res) => {
+  try {
+    const { order_id, source_bin_id, destination_sequence } = req.body;
+    
+    if (!order_id || !source_bin_id || !destination_sequence || !Array.isArray(destination_sequence)) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const sourceBin = db.prepare('SELECT * FROM bins WHERE id = ?').get(source_bin_id);
+    if (!sourceBin) {
+      return res.status(404).json({ success: false, error: 'Source bin not found' });
+    }
+
+    let remainingQuantity = sourceBin.current_quantity;
+    let totalTransferred = 0;
+
+    const insertTransferJob = db.prepare(`
+      INSERT INTO transfer_jobs (order_id, transfer_type, status, total_quantity)
+      VALUES (?, 'SEQUENTIAL', 'IN_PROGRESS', 0)
+    `);
+    const transferJobResult = insertTransferJob.run(order_id);
+    const transferJobId = transferJobResult.lastInsertRowid;
+
+    const insertSequenceDetail = db.prepare(`
+      INSERT INTO transfer_sequence_details 
+      (transfer_job_id, source_bin_id, sequence_order, destination_bin_id, destination_bin_sequence, quantity_transferred)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const updateBin = db.prepare('UPDATE bins SET current_quantity = ? WHERE id = ?');
+
+    destination_sequence.forEach((destBinId, index) => {
+      const destBin = db.prepare('SELECT * FROM bins WHERE id = ?').get(destBinId);
+      if (!destBin) {
+        throw new Error(`Destination bin ${destBinId} not found`);
+      }
+
+      const availableSpace = destBin.capacity - destBin.current_quantity;
+      const transferAmount = Math.min(remainingQuantity, availableSpace);
+
+      if (transferAmount > 0) {
+        insertSequenceDetail.run(
+          transferJobId,
+          source_bin_id,
+          index + 1,
+          destBinId,
+          destBinId,
+          transferAmount
+        );
+
+        updateBin.run(destBin.current_quantity + transferAmount, destBinId);
+        
+        remainingQuantity -= transferAmount;
+        totalTransferred += transferAmount;
+      }
+    });
+
+    updateBin.run(sourceBin.current_quantity - totalTransferred, source_bin_id);
+
+    const updateTransferJob = db.prepare(`
+      UPDATE transfer_jobs 
+      SET status = 'COMPLETED', completed_at = CURRENT_TIMESTAMP, total_quantity = ?
+      WHERE id = ?
+    `);
+    updateTransferJob.run(totalTransferred, transferJobId);
+
+    const updateOrderStatus = db.prepare(`
+      UPDATE orders SET production_stage = 'TRANSFER_24_TO_12_COMPLETED' WHERE id = ?
+    `);
+    updateOrderStatus.run(order_id);
+
+    res.json({ 
+      success: true, 
+      data: { 
+        transfer_job_id: transferJobId, 
+        status: 'COMPLETED',
+        total_quantity: totalTransferred,
+        remaining_in_source: remainingQuantity
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/transfers/:orderId', (req, res) => {
+  try {
+    const transfers = db.prepare(`
+      SELECT * FROM transfer_jobs WHERE order_id = ? ORDER BY created_at DESC
+    `).all(req.params.orderId);
+
+    for (let transfer of transfers) {
+      if (transfer.transfer_type === 'BLENDED') {
+        transfer.details = db.prepare(`
+          SELECT 
+            tbd.*,
+            sb.bin_name as source_bin_name,
+            db.bin_name as destination_bin_name
+          FROM transfer_blend_details tbd
+          JOIN bins sb ON tbd.source_bin_id = sb.id
+          JOIN bins db ON tbd.destination_bin_id = db.id
+          WHERE tbd.transfer_job_id = ?
+        `).all(transfer.id);
+      } else if (transfer.transfer_type === 'SEQUENTIAL') {
+        transfer.details = db.prepare(`
+          SELECT 
+            tsd.*,
+            sb.bin_name as source_bin_name,
+            db.bin_name as destination_bin_name
+          FROM transfer_sequence_details tsd
+          JOIN bins sb ON tsd.source_bin_id = sb.id
+          JOIN bins db ON tsd.destination_bin_id = db.id
+          WHERE tsd.transfer_job_id = ?
+          ORDER BY tsd.sequence_order
+        `).all(transfer.id);
+      }
+    }
+
+    res.json({ success: true, data: transfers });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

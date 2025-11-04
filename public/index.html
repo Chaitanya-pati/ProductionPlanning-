@@ -17,6 +17,8 @@
             <button class="tab-btn active" onclick="showTab('orders', this)">Orders</button>
             <button class="tab-btn" onclick="showTab('create-order', this)">Create Order</button>
             <button class="tab-btn" onclick="showTab('create-plan', this)">Create Plan</button>
+            <button class="tab-btn" onclick="showTab('transfer-blended', this)">Transfer PRE→24</button>
+            <button class="tab-btn" onclick="showTab('transfer-sequential', this)">Transfer 24→12</button>
             <button class="tab-btn" onclick="showTab('products-master', this)">Products Master</button>
             <button class="tab-btn" onclick="showTab('bins-master', this)">Bins Master</button>
         </div>
@@ -87,6 +89,66 @@
             <div id="plan-message" class="message"></div>
         </div>
 
+        <div id="transfer-blended-tab" class="tab-content">
+            <h2>Stage 3-4: Transfer PRE→24 (BLENDED)</h2>
+            <p class="hint">Transfer blended wheat from multiple pre-cleaning bins to 24HR bins based on the plan.</p>
+            
+            <div class="form-group">
+                <label>Select Order:</label>
+                <select id="blended_order_id">
+                    <option value="">Loading orders...</option>
+                </select>
+            </div>
+
+            <div id="blended-order-details" class="order-details"></div>
+
+            <div id="blended-plan-selection" style="display: none;">
+                <div class="form-group">
+                    <label>Select Plan:</label>
+                    <select id="blended_plan_id">
+                        <option value="">Select a plan...</option>
+                    </select>
+                </div>
+                <div id="blended-plan-details"></div>
+                <button id="execute-blended-transfer" class="btn-primary" style="display: none;">Execute Transfer</button>
+            </div>
+            <div id="blended-message" class="message"></div>
+        </div>
+
+        <div id="transfer-sequential-tab" class="tab-content">
+            <h2>Stage 5-6: Transfer 24→12 (SEQUENTIAL)</h2>
+            <p class="hint">Transfer wheat from one 24HR bin to multiple 12HR bins sequentially.</p>
+            
+            <div class="form-group">
+                <label>Select Order:</label>
+                <select id="sequential_order_id">
+                    <option value="">Loading orders...</option>
+                </select>
+            </div>
+
+            <div id="sequential-order-details" class="order-details"></div>
+
+            <div id="sequential-transfer-config" style="display: none;">
+                <div class="form-group">
+                    <label>Select 24HR Source Bin:</label>
+                    <select id="sequential_source_bin">
+                        <option value="">Select a bin...</option>
+                    </select>
+                </div>
+
+                <div id="sequential-source-details"></div>
+
+                <div class="section">
+                    <h3>Destination 12HR Bins Sequence</h3>
+                    <p class="hint">Drag to reorder bins. System will fill each bin to capacity (25 tons) sequentially.</p>
+                    <div id="sequential-destinations-container"></div>
+                </div>
+
+                <button id="execute-sequential-transfer" class="btn-primary" style="display: none;">Execute Transfer</button>
+            </div>
+            <div id="sequential-message" class="message"></div>
+        </div>
+
         <div id="products-master-tab" class="tab-content">
             <h2>Products Master Configuration</h2>
             
@@ -131,6 +193,7 @@
                                 <option value="">Select Type</option>
                                 <option value="PRE_CLEAN">Pre-Clean</option>
                                 <option value="24HR">24HR</option>
+                                <option value="12HR">12HR</option>
                                 <option value="STORAGE">Storage</option>
                                 <option value="OTHER">Other</option>
                             </select>
