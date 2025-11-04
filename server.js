@@ -355,19 +355,28 @@ app.post('/api/transfers/blended/stop', (req, res) => {
       return res.status(400).json({ success: false, error: 'Transfer is not in progress' });
     }
 
+    // Get source blend configuration
     const sourceBlends = db.prepare('SELECT * FROM plan_source_blend WHERE plan_id = ?').all(plan_id);
     const targetQuantity = transfer.target_quantity;
 
     const updateSourceBin = db.prepare('UPDATE bins SET current_quantity = current_quantity - ? WHERE id = ?');
     const updateDestBin = db.prepare('UPDATE bins SET current_quantity = current_quantity + ? WHERE id = ?');
 
+    // BLENDED TRANSFER: Deduct from each source bin based on blend percentage
+    // Example: For 24HR Bin1 (50t) with blend 30% Bin1 + 40% Bin2 + 30% Bin3:
+    // - Deduct 30% × 50t = 15t from Pre-Clean Bin1
+    // - Deduct 40% × 50t = 20t from Pre-Clean Bin2
+    // - Deduct 30% × 50t = 15t from Pre-Clean Bin3
+    // - Add combined 50t to 24HR Bin1
     sourceBlends.forEach(source => {
       const contribution = (source.blend_percentage / 100) * targetQuantity;
       updateSourceBin.run(contribution, source.source_bin_id);
     });
     
+    // Add the full target quantity to destination bin (this is the combined blend)
     updateDestBin.run(targetQuantity, destination_bin_id);
 
+    // Update transfer record
     const updateTransfer = db.prepare(`
       UPDATE destination_bin_transfers 
       SET status = 'COMPLETED', transferred_quantity = ?, completed_at = CURRENT_TIMESTAMP 
@@ -375,6 +384,7 @@ app.post('/api/transfers/blended/stop', (req, res) => {
     `);
     updateTransfer.run(targetQuantity, transfer.id);
 
+    // Check if all destination bins have completed their transfers
     const allTransfers = db.prepare(
       'SELECT * FROM destination_bin_transfers WHERE plan_id = ?'
     ).all(plan_id);
