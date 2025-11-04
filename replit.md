@@ -28,11 +28,20 @@ A production planning and management system for flour mills. This web applicatio
 
 5. **bins** - Stores bin information
    - id, bin_name, bin_type, capacity, current_quantity, identity_number
-   - Pre-initialized with 6 bins (3 PRE_CLEAN, 3 24HR)
+   - Pre-initialized with 10 bins (3 PRE_CLEAN, 3 24HR, 4 12HR)
 
 6. **products** - Stores product master data
    - id, product_name, initial_name, created_at
    - Pre-initialized with 4 products (Wheat Flour, Maida, Suji, Atta)
+
+7. **transfer_jobs** - Stores transfer job records
+   - id, order_id, plan_id, transfer_type, status, total_quantity, created_at, completed_at
+   
+8. **transfer_blend_details** - Stores blended transfer contribution details
+   - id, transfer_job_id, destination_bin_id, source_bin_id, source_contribution_percentage, source_contribution_tons
+
+9. **transfer_sequence_details** - Stores sequential transfer details
+   - id, transfer_job_id, source_bin_id, sequence_order, destination_bin_id, destination_bin_sequence, quantity_transferred
 
 ## Features
 
@@ -45,12 +54,12 @@ A production planning and management system for flour mills. This web applicatio
 ### Bins Master Configuration
 - Add new bins with:
   - Bin name
-  - Bin type (PRE_CLEAN, 24HR, STORAGE, OTHER)
+  - Bin type (PRE_CLEAN, 24HR, 12HR, STORAGE, OTHER)
   - Capacity in tons
   - Current quantity
-  - Identity number (e.g., PC-01, 24HR-01)
+  - Identity number (e.g., PC-01, 24HR-01, 12HR-301)
 - View all configured bins
-- Bins dynamically populate the Create Plan form based on their type
+- Bins dynamically populate forms based on their type
 
 ### Stage 1: Create Order
 - Create production orders with order number, product type, and quantity
@@ -65,6 +74,24 @@ A production planning and management system for flour mills. This web applicatio
 - Automatic validation of percentages and quantities
 - Updates order status to "PLANNED" upon successful plan creation
 - Supports any number of source and destination bins
+
+### Stage 3-4: Transfer PRE→24 (BLENDED)
+- Execute blended transfer from multiple PRE_CLEAN bins to 24HR bins based on the plan
+- Calculates contributions: Contribution = Blend Percentage × Destination Quantity
+- Updates bin quantities automatically:
+  - Deducts from source PRE_CLEAN bins based on contributions
+  - Adds combined amounts to destination 24HR bins
+- Records transfer details in transfer_jobs and transfer_blend_details tables
+- Updates order status to "TRANSFER_PRE_TO_24_COMPLETED"
+
+### Stage 5-6: Transfer 24→12 (SEQUENTIAL)
+- Execute sequential transfer from one 24HR bin to multiple 12HR bins
+- Fills each 12HR bin to capacity (25 tons) sequentially in selected order
+- User can select which 12HR bins to use via checkboxes
+- Remaining quantity stays in source 24HR bin for later transfer
+- Updates bin quantities automatically
+- Records transfer details in transfer_jobs and transfer_sequence_details tables
+- Updates order status to "TRANSFER_24_TO_12_COMPLETED"
 
 ## API Endpoints
 
@@ -86,6 +113,11 @@ A production planning and management system for flour mills. This web applicatio
 - `POST /api/plans` - Create production plan
 - `GET /api/plans/:order_id` - Get plans for an order
 
+### Transfers
+- `POST /api/transfers/blended` - Execute blended transfer (PRE→24)
+- `POST /api/transfers/sequential` - Execute sequential transfer (24→12)
+- `GET /api/transfers/:orderId` - Get transfer history for an order
+
 ## File Structure
 ```
 /
@@ -93,18 +125,26 @@ A production planning and management system for flour mills. This web applicatio
 ├── database.js         # Database initialization and schema
 ├── package.json        # Project dependencies
 ├── public/
-│   ├── index.html     # Main UI interface with 5 tabs
+│   ├── index.html     # Main UI interface with 7 tabs
 │   ├── style.css      # Styling with master configuration styles
 │   └── app.js         # Frontend logic with dynamic data loading
 └── flour_mill.db      # SQLite database file
 ```
 
 ## Recent Changes (November 4, 2025)
+- **LATEST**: Implemented STAGE 3-4 (Transfer PRE→24 BLENDED) and STAGE 5-6 (Transfer 24→12 SEQUENTIAL)
+  - Added 3 new database tables: transfer_jobs, transfer_blend_details, transfer_sequence_details
+  - Added 4 pre-initialized 12HR bins (301-304) with 25-ton capacity each
+  - Built backend API endpoints for both transfer types with bin quantity updates
+  - Created frontend UI tabs for executing transfers
+  - Added transfer history tracking
+  - Implemented order status progression through transfer stages
+
 - Added Products Master configuration for managing product catalog
 - Added Bins Master configuration for managing bin inventory
 - Updated database schema with products table and identity_number field for bins
 - Made Create Order form load products dynamically from database
-- Made Create Plan form load bins dynamically based on bin type (PRE_CLEAN/24HR)
+- Made Create Plan form load bins dynamically based on bin type (PRE_CLEAN/24HR/12HR)
 - Enhanced UI with master configuration tabs
 - Improved flexibility by removing hardcoded product and bin options
 
@@ -113,3 +153,9 @@ A production planning and management system for flour mills. This web applicatio
 - Access via the web preview on port 5000
 - No manual configuration required
 - Pre-initialized with sample products and bins for easy start
+
+## Production Workflow
+1. **Create Order** - Define order number, product type, and quantity (Status: CREATED)
+2. **Create Plan** - Configure source blend (PRE_CLEAN bins) and destination distribution (24HR bins) (Status: PLANNED)
+3. **Transfer PRE→24** - Execute blended transfer from PRE_CLEAN to 24HR bins (Status: TRANSFER_PRE_TO_24_COMPLETED)
+4. **Transfer 24→12** - Execute sequential transfer from 24HR to 12HR bins (Status: TRANSFER_24_TO_12_COMPLETED)
