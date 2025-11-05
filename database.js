@@ -191,6 +191,18 @@ db.exec(`
     FOREIGN KEY (grinding_job_id) REFERENCES grinding_jobs(id)
   );
 
+  CREATE TABLE IF NOT EXISTS grinding_lab_tests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grinding_job_id INTEGER NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    product_type TEXT NOT NULL,
+    moisture REAL NOT NULL,
+    status TEXT DEFAULT 'SUBMITTED',
+    submitted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (grinding_job_id) REFERENCES grinding_jobs(id)
+  );
+
   CREATE TABLE IF NOT EXISTS finished_goods_godowns (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     godown_name TEXT UNIQUE NOT NULL,
