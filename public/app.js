@@ -2130,12 +2130,45 @@ document.getElementById('packaging_order_id')?.addEventListener('change', async 
 
 function toggleShallowSelection() {
     const productType = document.getElementById('packaging_product_type').value;
+    const maidaOptions = document.getElementById('maida-storage-options');
     const shallowDiv = document.getElementById('shallow-selection');
+    const bagSection = document.getElementById('bag-packaging-section');
     
     if (productType === 'MAIDA') {
+        maidaOptions.style.display = 'block';
+        // Reset radio buttons and hide both sections initially
+        document.querySelectorAll('input[name="maida_storage_method"]').forEach(radio => radio.checked = false);
+        shallowDiv.style.display = 'none';
+        bagSection.style.display = 'none';
+    } else {
+        maidaOptions.style.display = 'none';
+        shallowDiv.style.display = 'none';
+        bagSection.style.display = 'block';
+    }
+}
+
+function toggleMaidaStorageMethod() {
+    const selectedMethod = document.querySelector('input[name="maida_storage_method"]:checked');
+    const shallowDiv = document.getElementById('shallow-selection');
+    const bagSection = document.getElementById('bag-packaging-section');
+    
+    if (!selectedMethod) return;
+    
+    if (selectedMethod.value === 'shallow') {
         shallowDiv.style.display = 'block';
+        bagSection.style.display = 'none';
+        // Clear bag fields
+        document.getElementById('packaging_bag_size').value = '';
+        document.getElementById('packaging_num_bags').value = '';
+        document.getElementById('packaging_total_weight').value = '';
     } else {
         shallowDiv.style.display = 'none';
+        bagSection.style.display = 'block';
+        // Clear shallow fields
+        document.getElementById('packaging_shallow_id').value = '';
+        if (document.getElementById('shallow_quantity')) {
+            document.getElementById('shallow_quantity').value = '';
+        }
     }
 }
 
@@ -2156,33 +2189,82 @@ async function submitPackaging() {
     const orderId = document.getElementById('packaging_order_id').value;
     const grindingJobId = document.getElementById('packaging-details').dataset.grindingJobId;
     const productType = document.getElementById('packaging_product_type').value;
-    const shallowId = document.getElementById('packaging_shallow_id').value;
-    const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
-    const numBags = parseInt(document.getElementById('packaging_num_bags').value);
-    const godownId = document.getElementById('packaging_godown_id').value;
     const messageEl = document.getElementById('packaging-message');
     
-    if (!orderId || !productType || !bagSize || !numBags || !godownId) {
+    if (!orderId || !productType) {
         messageEl.className = 'message error';
-        messageEl.textContent = 'Please fill all required fields';
+        messageEl.textContent = 'Please select an order and product type';
         return;
     }
     
-    if (productType === 'MAIDA' && !shallowId) {
-        messageEl.className = 'message error';
-        messageEl.textContent = 'Please select a shallow for MAIDA packaging';
-        return;
-    }
-    
-    const packagingData = {
+    let packagingData = {
         order_id: parseInt(orderId),
         grinding_job_id: parseInt(grindingJobId),
-        product_type: productType,
-        shallow_id: shallowId ? parseInt(shallowId) : null,
-        bag_size_kg: bagSize,
-        number_of_bags: numBags,
-        godown_id: parseInt(godownId)
+        product_type: productType
     };
+    
+    // Check if MAIDA and which storage method
+    if (productType === 'MAIDA') {
+        const storageMethod = document.querySelector('input[name="maida_storage_method"]:checked');
+        
+        if (!storageMethod) {
+            messageEl.className = 'message error';
+            messageEl.textContent = 'Please select a storage method for MAIDA';
+            return;
+        }
+        
+        if (storageMethod.value === 'shallow') {
+            // Storing in shallow (loose, no bags)
+            const shallowId = document.getElementById('packaging_shallow_id').value;
+            const shallowQty = parseFloat(document.getElementById('shallow_quantity').value);
+            
+            if (!shallowId || !shallowQty || shallowQty <= 0) {
+                messageEl.className = 'message error';
+                messageEl.textContent = 'Please select a shallow and enter quantity';
+                return;
+            }
+            
+            packagingData.shallow_id = parseInt(shallowId);
+            packagingData.bag_size_kg = 0; // No bags
+            packagingData.number_of_bags = 0; // No bags
+            packagingData.total_kg_packed = shallowQty;
+            packagingData.godown_id = null; // Not going to godown
+        } else {
+            // Packaging in bags
+            const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
+            const numBags = parseInt(document.getElementById('packaging_num_bags').value);
+            const godownId = document.getElementById('packaging_godown_id').value;
+            
+            if (!bagSize || !numBags || !godownId) {
+                messageEl.className = 'message error';
+                messageEl.textContent = 'Please fill bag size, number of bags, and godown';
+                return;
+            }
+            
+            packagingData.shallow_id = null; // Not using shallow
+            packagingData.bag_size_kg = bagSize;
+            packagingData.number_of_bags = numBags;
+            packagingData.total_kg_packed = (bagSize * numBags) / 1000; // Convert kg to tons
+            packagingData.godown_id = parseInt(godownId);
+        }
+    } else {
+        // Other products - always use bags
+        const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
+        const numBags = parseInt(document.getElementById('packaging_num_bags').value);
+        const godownId = document.getElementById('packaging_godown_id').value;
+        
+        if (!bagSize || !numBags || !godownId) {
+            messageEl.className = 'message error';
+            messageEl.textContent = 'Please fill bag size, number of bags, and godown';
+            return;
+        }
+        
+        packagingData.shallow_id = null;
+        packagingData.bag_size_kg = bagSize;
+        packagingData.number_of_bags = numBags;
+        packagingData.total_kg_packed = (bagSize * numBags) / 1000; // Convert kg to tons
+        packagingData.godown_id = parseInt(godownId);
+    }
     
     try {
         const response = await fetch(`${API_URL}/api/packaging`, {
@@ -2195,14 +2277,25 @@ async function submitPackaging() {
         
         if (result.success) {
             messageEl.className = 'message success';
-            messageEl.textContent = `Successfully packaged ${result.data.total_kg_packed} tons of ${productType} in ${numBags} bags!`;
+            const storedIn = packagingData.shallow_id ? 'shallow' : 'godown';
+            const details = packagingData.number_of_bags > 0 
+                ? `in ${packagingData.number_of_bags} bags` 
+                : 'loose';
+            messageEl.textContent = `Successfully stored ${result.data.total_kg_packed} tons of ${productType} ${details} in ${storedIn}!`;
             
             // Reset form
             document.getElementById('packaging_product_type').value = '';
             document.getElementById('packaging_shallow_id').value = '';
+            document.getElementById('packaging_bag_size').value = '';
             document.getElementById('packaging_num_bags').value = '';
             document.getElementById('packaging_total_weight').value = '';
+            if (document.getElementById('shallow_quantity')) {
+                document.getElementById('shallow_quantity').value = '';
+            }
+            document.getElementById('maida-storage-options').style.display = 'none';
             document.getElementById('shallow-selection').style.display = 'none';
+            document.getElementById('bag-packaging-section').style.display = 'none';
+            document.querySelectorAll('input[name="maida_storage_method"]').forEach(radio => radio.checked = false);
             
             // Reload packaging records
             setTimeout(() => {

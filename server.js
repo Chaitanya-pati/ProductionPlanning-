@@ -1092,18 +1092,40 @@ app.post('/api/packaging', (req, res) => {
       godown_id 
     } = req.body;
     
-    if (!order_id || !grinding_job_id || !product_type || !bag_size_kg || !number_of_bags || !godown_id) {
+    if (!order_id || !grinding_job_id || !product_type) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    const total_kg_packed = bag_size_kg * number_of_bags;
+    const total_kg_packed = bag_size_kg && number_of_bags ? (bag_size_kg * number_of_bags) / 1000 : req.body.total_kg_packed;
 
-    // If product is MAIDA, check and deduct from shallow
-    if (product_type.toUpperCase() === 'MAIDA') {
-      if (!shallow_id) {
-        return res.status(400).json({ success: false, error: 'Shallow selection required for MAIDA' });
+    // If product is MAIDA and using shallow storage (no bags)
+    if (product_type.toUpperCase() === 'MAIDA' && shallow_id && (!bag_size_kg || bag_size_kg === 0)) {
+      // Storing in shallow only - no godown
+
+      const shallow = db.prepare('SELECT * FROM maida_shallows WHERE id = ?').get(shallow_id);
+      if (!shallow) {
+        return res.status(404).json({ success: false, error: 'Shallow not found' });
       }
 
+      const availableSpace = shallow.capacity - shallow.current_quantity;
+      if (availableSpace < total_kg_packed) {
+        return res.status(400).json({ 
+          success: false, 
+          error: `Insufficient space in shallow. Available: ${availableSpace} tons, Required: ${total_kg_packed} tons`
+        });
+      }
+
+      // Add to shallow (no deduction, we're adding MAIDA from grinding)
+      db.prepare('UPDATE maida_shallows SET current_quantity = current_quantity + ? WHERE id = ?')
+        .run(total_kg_packed, shallow_id);
+      
+      // Record storage transfer from grinding to shallow
+      db.prepare(`
+        INSERT INTO storage_transfers (source_type, source_id, destination_type, destination_id, product_type, quantity)
+        VALUES ('GRINDING', ?, 'SHALLOW', ?, ?, ?)
+      `).run(grinding_job_id, shallow_id, product_type, total_kg_packed);
+    } else if (product_type.toUpperCase() === 'MAIDA' && shallow_id && bag_size_kg > 0) {
+      // MAIDA from shallow to bags to godown
       const shallow = db.prepare('SELECT * FROM maida_shallows WHERE id = ?').get(shallow_id);
       if (!shallow) {
         return res.status(404).json({ success: false, error: 'Shallow not found' });
@@ -1120,22 +1142,31 @@ app.post('/api/packaging', (req, res) => {
       db.prepare('UPDATE maida_shallows SET current_quantity = current_quantity - ? WHERE id = ?')
         .run(total_kg_packed, shallow_id);
       
+      // Add to godown
+      db.prepare('UPDATE finished_goods_godowns SET current_quantity = current_quantity + ? WHERE id = ?')
+        .run(total_kg_packed, godown_id);
+      
       // Record storage transfer
       db.prepare(`
         INSERT INTO storage_transfers (source_type, source_id, destination_type, destination_id, product_type, quantity)
         VALUES ('SHALLOW', ?, 'GODOWN', ?, ?, ?)
       `).run(shallow_id, godown_id, product_type, total_kg_packed);
     } else {
-      // For non-MAIDA products, record transfer from grinding
+      // For other products or MAIDA direct to bags: grinding to godown
+      if (!godown_id) {
+        return res.status(400).json({ success: false, error: 'Godown selection required' });
+      }
+      
+      // Add to godown
+      db.prepare('UPDATE finished_goods_godowns SET current_quantity = current_quantity + ? WHERE id = ?')
+        .run(total_kg_packed, godown_id);
+      
+      // Record storage transfer from grinding
       db.prepare(`
         INSERT INTO storage_transfers (source_type, source_id, destination_type, destination_id, product_type, quantity)
         VALUES ('GRINDING', ?, 'GODOWN', ?, ?, ?)
       `).run(grinding_job_id, godown_id, product_type, total_kg_packed);
     }
-
-    // Add to godown
-    db.prepare('UPDATE finished_goods_godowns SET current_quantity = current_quantity + ? WHERE id = ?')
-      .run(total_kg_packed, godown_id);
 
     // Create packaging record
     const packagingStmt = db.prepare(`
@@ -1149,10 +1180,10 @@ app.post('/api/packaging', (req, res) => {
       order_id, 
       product_type, 
       shallow_id || null, 
-      bag_size_kg, 
-      number_of_bags, 
+      bag_size_kg || 0, 
+      number_of_bags || 0, 
       total_kg_packed, 
-      godown_id
+      godown_id || null
     );
 
     // Update order status
