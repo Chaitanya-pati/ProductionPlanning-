@@ -8,24 +8,46 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>🌾 Flour Mill ERP System</h1>
-            <p>Production Planning & Management</p>
-        </header>
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>🌾 Flour Mill ERP</h1>
+                <p>Production Management</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <div class="nav-section-title">Dashboard</div>
+                    <button class="tab-btn active" onclick="showTab('orders', this)">📊 All Orders</button>
+                    <button class="tab-btn" onclick="showTab('timeline', this)">⏱️ Timeline View</button>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Production Workflow</div>
+                    <button class="tab-btn" onclick="showTab('create-order', this)">➕ Create Order</button>
+                    <button class="tab-btn" onclick="showTab('create-plan', this)">📋 Create Plan</button>
+                    <button class="tab-btn" onclick="showTab('transfer-blended', this)">🔄 Transfer PRE→24</button>
+                    <button class="tab-btn" onclick="showTab('transfer-sequential', this)">🔄 Transfer 24→12</button>
+                    <button class="tab-btn" onclick="showTab('grinding', this)">⚙️ Grinding</button>
+                </div>
+                
+                <div class="nav-section">
+                    <div class="nav-section-title">Master Data</div>
+                    <button class="tab-btn" onclick="showTab('products-master', this)">📦 Products Master</button>
+                    <button class="tab-btn" onclick="showTab('bins-master', this)">🗄️ Bins Master</button>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div>© 2025 Flour Mill ERP</div>
+                <div style="margin-top: 5px; opacity: 0.7;">v1.0.0</div>
+            </div>
+        </aside>
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="showTab('orders', this)">Orders</button>
-            <button class="tab-btn" onclick="showTab('create-order', this)">Create Order</button>
-            <button class="tab-btn" onclick="showTab('create-plan', this)">Create Plan</button>
-            <button class="tab-btn" onclick="showTab('transfer-blended', this)">Transfer PRE→24</button>
-            <button class="tab-btn" onclick="showTab('transfer-sequential', this)">Transfer 24→12</button>
-            <button class="tab-btn" onclick="showTab('grinding', this)">Grinding</button>
-            <button class="tab-btn" onclick="showTab('products-master', this)">Products Master</button>
-
-            <button class="tab-btn" onclick="showTab('timeline', this)">Timeline View</button>
-
-            <button class="tab-btn" onclick="showTab('bins-master', this)">Bins Master</button>
-        </div>
+        <main class="main-content">
+            <div class="content-header">
+                <h1>Production Planning & Management</h1>
+                <p>Manage your entire flour mill production workflow</p>
+            </div>
 
         <div id="orders-tab" class="tab-content active">
             <h2>All Orders</h2>
@@ -289,6 +311,7 @@
                 </div>
             </div>
         </div>
+        </main>
     </div>
 
     <script src="app.js"></script>

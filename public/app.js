@@ -11,13 +11,13 @@ function showTab(tabName, clickedElement) {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    
+
     document.getElementById(`${tabName}-tab`).classList.add('active');
-    
+
     if (clickedElement) {
         clickedElement.classList.add('active');
     }
-    
+
     if (tabName === 'orders') {
         loadOrders();
     } else if (tabName === 'grinding') {
@@ -44,9 +44,9 @@ async function loadOrders() {
     try {
         const response = await fetch(`${API_URL}/api/orders`);
         const result = await response.json();
-        
+
         const ordersList = document.getElementById('orders-list');
-        
+
         if (result.success && result.data.length > 0) {
             ordersList.innerHTML = result.data.map(order => `
                 <div class="order-card">
@@ -72,9 +72,9 @@ async function loadProductsForOrder() {
     try {
         const response = await fetch(`${API_URL}/api/products`);
         const result = await response.json();
-        
+
         const select = document.getElementById('product_type');
-        
+
         if (result.success && result.data.length > 0) {
             select.innerHTML = '<option value="">Select Product</option>' + 
                 result.data.map(product => 
@@ -96,22 +96,22 @@ function createPlanForOrder(orderId) {
 
 document.getElementById('order-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const orderData = {
         product_type: document.getElementById('product_type').value,
         quantity: parseFloat(document.getElementById('quantity').value)
     };
-    
+
     try {
         const response = await fetch(`${API_URL}/api/orders`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(orderData)
         });
-        
+
         const result = await response.json();
         const messageEl = document.getElementById('order-message');
-        
+
         if (result.success) {
             messageEl.className = 'message success';
             messageEl.textContent = `Order ${result.data.order_number} created successfully! Status: CREATED`;
@@ -134,12 +134,12 @@ async function loadOrdersForPlan() {
     try {
         const response = await fetch(`${API_URL}/api/orders`);
         const result = await response.json();
-        
+
         const select = document.getElementById('plan_order_id');
-        
+
         if (result.success && result.data.length > 0) {
             const createdOrders = result.data.filter(o => o.production_stage === 'CREATED');
-            
+
             if (createdOrders.length > 0) {
                 select.innerHTML = '<option value="">Select an order</option>' + 
                     createdOrders.map(order => 
@@ -160,12 +160,12 @@ async function loadBinsForPlan() {
     try {
         const response = await fetch(`${API_URL}/api/bins`);
         const result = await response.json();
-        
+
         if (result.success) {
             allBins = result.data;
             sourceBins = allBins.filter(bin => bin.bin_type === 'PRE_CLEAN');
             destinationBins = allBins.filter(bin => bin.bin_type === '24HR');
-            
+
             renderSourceBins();
             renderDestinationBins();
         }
@@ -187,22 +187,22 @@ function addSourceBinRow() {
         alert('No PRE_CLEAN bins found. Please add bins in Bins Master.');
         return;
     }
-    
+
     const container = document.getElementById('source-bins-container');
     const rowId = `source-row-${sourceRowCounter++}`;
     const orderTotal = parseFloat(document.getElementById('order-details').getAttribute('data-total')) || 0;
-    
+
     const availableBins = sourceBins.filter(bin => {
         const existingSelects = container.querySelectorAll('.source-bin-select');
         const selectedIds = Array.from(existingSelects).map(s => s.value).filter(v => v);
         return !selectedIds.includes(bin.id.toString());
     });
-    
+
     if (availableBins.length === 0) {
         alert('All PRE_CLEAN bins have been added.');
         return;
     }
-    
+
     const row = document.createElement('div');
     row.className = 'dynamic-bin-item';
     row.id = rowId;
@@ -217,17 +217,17 @@ function addSourceBinRow() {
         <span>tons</span>
         <button type="button" class="remove-bin-btn" onclick="removeSourceBinRow('${rowId}')">Remove</button>
     `;
-    
+
     container.appendChild(row);
-    
+
     const select = row.querySelector('.source-bin-select');
     const percentInput = row.querySelector('.source-percentage-input');
     const quantityDisplay = row.querySelector('.source-quantity-display');
-    
+
     select.addEventListener('change', () => {
         updateBlendTotal();
     });
-    
+
     percentInput.addEventListener('input', () => {
         const percentage = parseFloat(percentInput.value) || 0;
         const quantity = (percentage / 100) * orderTotal;
@@ -257,21 +257,21 @@ function addDestinationBinRow() {
         alert('No 24HR bins found. Please add bins in Bins Master.');
         return;
     }
-    
+
     const container = document.getElementById('destination-bins-container');
     const rowId = `dest-row-${destRowCounter++}`;
-    
+
     const availableBins = destinationBins.filter(bin => {
         const existingSelects = container.querySelectorAll('.dest-bin-select');
         const selectedIds = Array.from(existingSelects).map(s => s.value).filter(v => v);
         return !selectedIds.includes(bin.id.toString());
     });
-    
+
     if (availableBins.length === 0) {
         alert('All 24HR bins have been added.');
         return;
     }
-    
+
     const row = document.createElement('div');
     row.className = 'dynamic-bin-item';
     row.id = rowId;
@@ -284,9 +284,9 @@ function addDestinationBinRow() {
         <span>tons</span>
         <button type="button" class="remove-bin-btn" onclick="removeDestinationBinRow('${rowId}')">Remove</button>
     `;
-    
+
     container.appendChild(row);
-    
+
     const quantityInput = row.querySelector('.dest-quantity-input');
     quantityInput.addEventListener('input', updateDistTotal);
 }
@@ -304,16 +304,16 @@ document.getElementById('plan_order_id').addEventListener('change', updateOrderD
 async function updateOrderDetails() {
     const orderId = document.getElementById('plan_order_id').value;
     const detailsEl = document.getElementById('order-details');
-    
+
     if (!orderId) {
         detailsEl.classList.remove('show');
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/api/orders/${orderId}`);
         const result = await response.json();
-        
+
         if (result.success) {
             const order = result.data;
             detailsEl.innerHTML = `
@@ -336,10 +336,10 @@ function updateBlendTotal() {
     inputs.forEach(input => {
         total += parseFloat(input.value) || 0;
     });
-    
+
     const displayEl = document.getElementById('blend-total');
     displayEl.textContent = `Total: ${total.toFixed(2)}%`;
-    
+
     if (Math.abs(total - 100) < 0.01 && total > 0) {
         displayEl.className = 'total-display valid';
     } else {
@@ -353,12 +353,12 @@ function updateDistTotal() {
     inputs.forEach(input => {
         total += parseFloat(input.value) || 0;
     });
-    
+
     const orderTotal = parseFloat(document.getElementById('order-details').getAttribute('data-total')) || 0;
-    
+
     const displayEl = document.getElementById('dist-total');
     displayEl.textContent = `Total: ${total.toFixed(2)} tons (Required: ${orderTotal} tons)`;
-    
+
     if (Math.abs(total - orderTotal) < 0.01 && orderTotal > 0) {
         displayEl.className = 'total-display valid';
     } else {
@@ -368,16 +368,16 @@ function updateDistTotal() {
 
 document.getElementById('plan-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const orderId = document.getElementById('plan_order_id').value;
     if (!orderId) {
         alert('Please select an order');
         return;
     }
-    
+
     const sourceRows = document.querySelectorAll('#source-bins-container .dynamic-bin-item');
     const destRows = document.querySelectorAll('#destination-bins-container .dynamic-bin-item');
-    
+
     const source_blend = Array.from(sourceRows).map(row => {
         const binId = row.querySelector('.source-bin-select').value;
         const percentage = row.querySelector('.source-percentage-input').value;
@@ -386,7 +386,7 @@ document.getElementById('plan-form').addEventListener('submit', async (e) => {
             percentage: parseFloat(percentage) || 0
         };
     }).filter(item => item.bin_id);
-    
+
     const destination_distribution = Array.from(destRows).map(row => {
         const binId = row.querySelector('.dest-bin-select').value;
         const quantity = row.querySelector('.dest-quantity-input').value;
@@ -395,24 +395,24 @@ document.getElementById('plan-form').addEventListener('submit', async (e) => {
             quantity: parseFloat(quantity) || 0
         };
     }).filter(item => item.bin_id);
-    
+
     const planData = {
         order_id: parseInt(orderId),
         plan_name: document.getElementById('plan_name').value,
         source_blend,
         destination_distribution
     };
-    
+
     try {
         const response = await fetch(`${API_URL}/api/plans`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(planData)
         });
-        
+
         const result = await response.json();
         const messageEl = document.getElementById('plan-message');
-        
+
         if (result.success) {
             messageEl.className = 'message success';
             messageEl.textContent = `Production plan "${planData.plan_name}" created successfully! Order status updated to PLANNED.`;
@@ -436,9 +436,9 @@ async function loadProducts() {
     try {
         const response = await fetch(`${API_URL}/api/products`);
         const result = await response.json();
-        
+
         const listEl = document.getElementById('products-list');
-        
+
         if (result.success && result.data.length > 0) {
             listEl.innerHTML = result.data.map(product => `
                 <div class="item-card">
@@ -458,22 +458,22 @@ async function loadProducts() {
 
 document.getElementById('product-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const productData = {
         product_name: document.getElementById('product_name').value,
         initial_name: document.getElementById('initial_name').value
     };
-    
+
     try {
         const response = await fetch(`${API_URL}/api/products`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(productData)
         });
-        
+
         const result = await response.json();
         const messageEl = document.getElementById('product-message');
-        
+
         if (result.success) {
             messageEl.className = 'message success';
             messageEl.textContent = `Product "${productData.product_name}" added successfully!`;
@@ -497,9 +497,9 @@ async function loadBins() {
     try {
         const response = await fetch(`${API_URL}/api/bins`);
         const result = await response.json();
-        
+
         const listEl = document.getElementById('bins-list');
-        
+
         if (result.success && result.data.length > 0) {
             listEl.innerHTML = result.data.map(bin => `
                 <div class="item-card">
@@ -519,7 +519,7 @@ async function loadBins() {
 
 document.getElementById('bin-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const binData = {
         bin_name: document.getElementById('bin_name').value,
         bin_type: document.getElementById('bin_type').value,
@@ -527,17 +527,17 @@ document.getElementById('bin-form').addEventListener('submit', async (e) => {
         current_quantity: parseFloat(document.getElementById('bin_current_quantity').value) || 0,
         identity_number: document.getElementById('bin_identity_number').value
     };
-    
+
     try {
         const response = await fetch(`${API_URL}/api/bins`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(binData)
         });
-        
+
         const result = await response.json();
         const messageEl = document.getElementById('bin-message');
-        
+
         if (result.success) {
             messageEl.className = 'message success';
             messageEl.textContent = `Bin "${binData.bin_name}" added successfully!`;
@@ -561,24 +561,24 @@ async function loadPlansForBlendedTransfer() {
     try {
         const ordersResponse = await fetch(`${API_URL}/api/orders`);
         const ordersResult = await ordersResponse.json();
-        
+
         const select = document.getElementById('blended_plan_id');
-        
+
         if (ordersResult.success && ordersResult.data.length > 0) {
             const availableOrders = ordersResult.data.filter(o => 
                 o.production_stage === 'PLANNED' || o.production_stage === 'TRANSFER_PRE_TO_24_IN_PROGRESS'
             );
-            
+
             if (availableOrders.length === 0) {
                 select.innerHTML = '<option value="">No planned orders available</option>';
                 return;
             }
-            
+
             let allPlans = [];
             for (let order of availableOrders) {
                 const plansResponse = await fetch(`${API_URL}/api/plans/${order.id}`);
                 const plansResult = await plansResponse.json();
-                
+
                 if (plansResult.success && plansResult.data.length > 0) {
                     plansResult.data.forEach(plan => {
                         allPlans.push({
@@ -591,7 +591,7 @@ async function loadPlansForBlendedTransfer() {
                     });
                 }
             }
-            
+
             if (allPlans.length > 0) {
                 select.innerHTML = '<option value="">Select a plan</option>' + 
                     allPlans.map(plan => 
@@ -613,17 +613,17 @@ async function showBlendedPlanInfo(planId) {
         const selectEl = document.getElementById('blended_plan_id');
         const selectedOption = selectEl.options[selectEl.selectedIndex];
         const orderId = selectedOption.getAttribute('data-order-id');
-        
+
         const plansResponse = await fetch(`${API_URL}/api/plans/${orderId}`);
         const plansResult = await plansResponse.json();
-        
+
         const ordersResponse = await fetch(`${API_URL}/api/orders/${orderId}`);
         const ordersResult = await ordersResponse.json();
-        
+
         if (plansResult.success && ordersResult.success) {
             const plan = plansResult.data.find(p => p.id == planId);
             const order = ordersResult.data;
-            
+
             if (plan) {
                 const infoEl = document.getElementById('blended-plan-info');
                 infoEl.innerHTML = `
@@ -639,7 +639,7 @@ async function showBlendedPlanInfo(planId) {
                     </div>
                 `;
                 infoEl.style.display = 'block';
-                
+
                 await renderBlendedDestinations(plan, orderId);
             }
         }
@@ -652,11 +652,11 @@ async function renderBlendedDestinations(plan, orderId) {
     const container = document.getElementById('blended-destinations-container');
     const binsResponse = await fetch(`${API_URL}/api/bins`);
     const binsResult = await binsResponse.json();
-    
+
     if (!binsResult.success) return;
-    
+
     const allBins = binsResult.data;
-    
+
     container.innerHTML = `
         <div class="section">
             <h3>Destination 24HR Bins - Individual Transfer Control</h3>
@@ -666,7 +666,7 @@ async function renderBlendedDestinations(plan, orderId) {
                     const bin = allBins.find(b => b.id === dest.bin_id);
                     const binName = bin ? bin.bin_name : `Bin ${dest.bin_id}`;
                     const binIdentity = bin ? bin.identity_number : '';
-                    
+
                     return `
                         <div class="destination-transfer-item" data-dest-bin-id="${dest.bin_id}" data-plan-id="${plan.id}" data-order-id="${orderId}" data-target-quantity="${dest.quantity}">
                             <div class="transfer-info">
@@ -705,7 +705,7 @@ async function showBlendedPlanDetails(planId) {
         const orderId = document.getElementById('blended_order_id').value;
         const response = await fetch(`${API_URL}/api/plans/${orderId}`);
         const result = await response.json();
-        
+
         if (result.success) {
             const plan = result.data.find(p => p.id == planId);
             if (plan) {
@@ -748,15 +748,15 @@ document.getElementById('blended_plan_id').addEventListener('change', function()
 async function startBlendedTransfer(destBinId, planId, orderId) {
     const item = document.querySelector(`[data-dest-bin-id="${destBinId}"][data-plan-id="${planId}"]`);
     if (!item) return;
-    
+
     const startBtn = item.querySelector('.btn-start');
     const stopBtn = item.querySelector('.btn-stop');
     const statusValue = item.querySelector('.status-value');
-    
+
     startBtn.disabled = true;
     statusValue.textContent = 'Transferring...';
     statusValue.className = 'status-value transferring';
-    
+
     try {
         const response = await fetch(`${API_URL}/api/transfers/blended/start`, {
             method: 'POST',
@@ -767,14 +767,14 @@ async function startBlendedTransfer(destBinId, planId, orderId) {
                 destination_bin_id: parseInt(destBinId)
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             startBtn.style.display = 'none';
             stopBtn.style.display = 'inline-block';
             statusValue.textContent = 'In Progress';
-            
+
             const messageEl = document.getElementById('blended-message');
             messageEl.className = 'message success';
             messageEl.textContent = `Transfer started for bin ${destBinId}`;
@@ -786,7 +786,7 @@ async function startBlendedTransfer(destBinId, planId, orderId) {
         startBtn.disabled = false;
         statusValue.textContent = 'Error';
         statusValue.className = 'status-value error';
-        
+
         const messageEl = document.getElementById('blended-message');
         messageEl.className = 'message error';
         messageEl.textContent = `Error: ${error.message}`;
@@ -796,19 +796,19 @@ async function startBlendedTransfer(destBinId, planId, orderId) {
 async function stopBlendedTransfer(destBinId, planId, orderId) {
     const item = document.querySelector(`[data-dest-bin-id="${destBinId}"][data-plan-id="${planId}"]`);
     if (!item) return;
-    
+
     const startBtn = item.querySelector('.btn-start');
     const stopBtn = item.querySelector('.btn-stop');
     const statusValue = item.querySelector('.status-value');
     const quantityValue = item.querySelector('.quantity-value');
-    
+
     if (!confirm('Stop the transfer for this bin?')) {
         return;
     }
-    
+
     stopBtn.disabled = true;
     statusValue.textContent = 'Stopping...';
-    
+
     try {
         const response = await fetch(`${API_URL}/api/transfers/blended/stop`, {
             method: 'POST',
@@ -819,16 +819,16 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
                 destination_bin_id: parseInt(destBinId)
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             stopBtn.style.display = 'none';
             startBtn.style.display = 'none';
             statusValue.textContent = 'Completed';
             statusValue.className = 'status-value completed';
             quantityValue.textContent = `${result.data.transferred_quantity} tons`;
-            
+
             const messageEl = document.getElementById('blended-message');
             messageEl.className = 'message success';
             messageEl.textContent = `Transfer completed for bin ${destBinId}: ${result.data.transferred_quantity} tons transferred`;
@@ -840,7 +840,7 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
         stopBtn.disabled = false;
         statusValue.textContent = 'Error';
         statusValue.className = 'status-value error';
-        
+
         const messageEl = document.getElementById('blended-message');
         messageEl.className = 'message error';
         messageEl.textContent = `Error: ${error.message}`;
@@ -851,12 +851,12 @@ async function loadOrdersForSequentialTransfer() {
     try {
         const response = await fetch(`${API_URL}/api/orders`);
         const result = await response.json();
-        
+
         const select = document.getElementById('sequential_order_id');
-        
+
         if (result.success && result.data.length > 0) {
             const transferredOrders = result.data.filter(o => o.production_stage === 'TRANSFER_PRE_TO_24_COMPLETED');
-            
+
             if (transferredOrders.length > 0) {
                 select.innerHTML = '<option value="">Select an order</option>' + 
                     transferredOrders.map(order => 
@@ -877,11 +877,11 @@ async function load24HRBins() {
     try {
         const response = await fetch(`${API_URL}/api/bins`);
         const result = await response.json();
-        
+
         if (result.success) {
             const bins24HR = result.data.filter(b => b.bin_type === '24HR' && b.current_quantity > 0);
             const select = document.getElementById('sequential_source_bin');
-            
+
             if (bins24HR.length > 0) {
                 select.innerHTML = '<option value="">Select a bin</option>' + 
                     bins24HR.map(bin => 
@@ -900,11 +900,11 @@ async function load12HRBinsSequence() {
     try {
         const response = await fetch(`${API_URL}/api/bins`);
         const result = await response.json();
-        
+
         if (result.success) {
             const bins12HR = result.data.filter(b => b.bin_type === '12HR');
             const container = document.getElementById('sequential-destinations-container');
-            
+
             if (bins12HR.length > 0) {
                 container.innerHTML = `
                     <p class="sequential-description">Select which 12HR bins to use. They will be filled in sequence order.</p>
@@ -940,17 +940,17 @@ async function load12HRBinsSequence() {
 document.getElementById('sequential_order_id').addEventListener('change', async function() {
     const orderId = this.value;
     const detailsEl = document.getElementById('sequential-order-details');
-    
+
     if (!orderId) {
         detailsEl.innerHTML = '';
         document.getElementById('sequential-transfer-config').style.display = 'none';
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/api/orders/${orderId}`);
-        const result = await response.json();
-        
+        const result = await ordersResponse.json();
+
         if (result.success) {
             const order = result.data;
             detailsEl.innerHTML = `
@@ -972,17 +972,17 @@ document.getElementById('sequential_order_id').addEventListener('change', async 
 document.getElementById('sequential_source_bin').addEventListener('change', async function() {
     const binId = this.value;
     const detailsEl = document.getElementById('sequential-source-details');
-    
+
     if (!binId) {
         detailsEl.innerHTML = '';
         document.getElementById('execute-sequential-transfer').style.display = 'none';
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/api/bins`);
         const result = await response.json();
-        
+
         if (result.success) {
             const bin = result.data.find(b => b.id == binId);
             if (bin) {
@@ -1007,7 +1007,7 @@ document.querySelectorAll('input[name="transfer_quantity_type"]').forEach(radio 
     radio.addEventListener('change', function() {
         const customInput = document.getElementById('custom_transfer_quantity');
         const validationEl = document.getElementById('custom-quantity-validation');
-        
+
         if (this.value === 'custom') {
             customInput.disabled = false;
             customInput.focus();
@@ -1025,7 +1025,7 @@ document.getElementById('custom_transfer_quantity').addEventListener('input', fu
     const availableQty = parseFloat(detailsEl.getAttribute('data-available')) || 0;
     const customQty = parseFloat(this.value) || 0;
     const validationEl = document.getElementById('custom-quantity-validation');
-    
+
     if (customQty > availableQty) {
         validationEl.textContent = `⚠️ Exceeds available quantity (${availableQty} tons)`;
         validationEl.style.color = '#ef4444';
@@ -1051,10 +1051,10 @@ function updateSequentialPreview() {
     selectedSequentialBins = allCheckboxes
         .filter(cb => cb.checked)
         .map(cb => parseInt(cb.value));
-    
+
     const previewEl = document.getElementById('sequential-transfer-preview');
     const startBtn = document.getElementById('start-sequential-transfer');
-    
+
     if (selectedSequentialBins.length > 0) {
         previewEl.style.display = 'block';
         startBtn.style.display = 'inline-block';
@@ -1067,15 +1067,15 @@ function updateSequentialPreview() {
 document.getElementById('start-sequential-transfer').addEventListener('click', async function() {
     const orderId = document.getElementById('sequential_order_id').value;
     const sourceBinId = document.getElementById('sequential_source_bin').value;
-    
+
     if (!orderId || !sourceBinId || selectedSequentialBins.length === 0) {
         alert('Please select order, source bin, and at least one destination bin');
         return;
     }
-    
+
     const quantityType = document.querySelector('input[name="transfer_quantity_type"]:checked').value;
     let transferQuantity = null;
-    
+
     if (quantityType === 'custom') {
         const customQty = parseFloat(document.getElementById('custom_transfer_quantity').value);
         if (!customQty || customQty <= 0) {
@@ -1084,27 +1084,27 @@ document.getElementById('start-sequential-transfer').addEventListener('click', a
         }
         transferQuantity = customQty;
     }
-    
+
     try {
         const requestBody = { 
             order_id: parseInt(orderId), 
             source_bin_id: parseInt(sourceBinId),
             destination_sequence: selectedSequentialBins
         };
-        
+
         if (transferQuantity) {
             requestBody.transfer_quantity = transferQuantity;
         }
-        
+
         const response = await fetch(`${API_URL}/api/transfers/sequential`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
         });
-        
+
         const result = await response.json();
         const messageEl = document.getElementById('sequential-message');
-        
+
         if (result.success) {
             messageEl.className = 'message success';
             let detailMsg = `Transfer completed! ${result.data.total_quantity} tons transferred. Remaining in source: ${result.data.remaining_in_source} tons.`;
@@ -1116,10 +1116,10 @@ document.getElementById('start-sequential-transfer').addEventListener('click', a
             }
             messageEl.textContent = detailMsg;
             messageEl.style.whiteSpace = 'pre-line';
-            
+
             document.getElementById('start-sequential-transfer').style.display = 'none';
             document.getElementById('stop-sequential-transfer').style.display = 'none';
-            
+
             setTimeout(() => {
                 showTab('orders', document.querySelector('[onclick*="orders"]'));
             }, 3000);
@@ -1140,9 +1140,9 @@ async function loadOrdersForTimeline() {
     try {
         const response = await fetch(`${API_URL}/api/orders`);
         const result = await response.json();
-        
+
         const select = document.getElementById('timeline_order_id');
-        
+
         if (result.success && result.data.length > 0) {
             select.innerHTML = '<option value="">Select an order</option>' + 
                 result.data.map(order => 
@@ -1174,17 +1174,17 @@ async function loadTimeline(orderId) {
     try {
         const response = await fetch(`${API_URL}/api/timeline/${orderId}`);
         const result = await response.json();
-        
+
         if (!result.success) {
             alert(`Error: ${result.error}`);
             return;
         }
-        
+
         const timeline = result.data;
         const container = document.getElementById('timeline-container');
         const infoEl = document.getElementById('timeline-order-info');
         const stagesEl = document.getElementById('timeline-stages');
-        
+
         // Show order info
         infoEl.innerHTML = `
             <h4>Order: ${timeline.order.order_number}</h4>
@@ -1193,18 +1193,18 @@ async function loadTimeline(orderId) {
             <p><strong>Current Status:</strong> <span class="status-badge status-${timeline.order.production_stage.toLowerCase()}">${timeline.order.production_stage}</span></p>
             <p><strong>Created:</strong> ${new Date(timeline.order.created_at).toLocaleString()}</p>
         `;
-        
+
         // Build timeline stages
         let stagesHTML = '';
         let stageNumber = 1;
-        
+
         // Stage 1: Order Created
         stagesHTML += buildStage(stageNumber++, 'Order Created', 'completed', timeline.order.created_at, null, {
             'Product': timeline.order.product_type,
             'Quantity': `${timeline.order.quantity} tons`,
             'Order Number': timeline.order.order_number
         });
-        
+
         // Stage 2: Production Plan
         if (timeline.plan) {
             stagesHTML += buildStage(stageNumber++, 'Production Plan Created', 'completed', timeline.plan.created_at, null, {
@@ -1217,16 +1217,16 @@ async function loadTimeline(orderId) {
                 'Status': 'Awaiting plan creation'
             });
         }
-        
+
         // Stage 3-4: PRE→24 Transfer
         if (timeline.blended_transfers && timeline.blended_transfers.length > 0) {
             const allCompleted = timeline.blended_transfers.every(t => t.status === 'COMPLETED');
             const anyInProgress = timeline.blended_transfers.some(t => t.status === 'IN_PROGRESS');
             const status = allCompleted ? 'completed' : (anyInProgress ? 'in-progress' : 'pending');
-            
+
             const completedTransfers = timeline.blended_transfers.filter(t => t.status === 'COMPLETED');
             const totalTransferred = completedTransfers.reduce((sum, t) => sum + t.transferred_quantity, 0);
-            
+
             stagesHTML += buildStage(stageNumber++, 'Transfer PRE→24 (Blended)', status, 
                 timeline.blended_transfers[0].started_at, 
                 allCompleted ? timeline.blended_transfers[timeline.blended_transfers.length - 1].completed_at : null, 
@@ -1242,7 +1242,7 @@ async function loadTimeline(orderId) {
                 'Status': 'Ready to start transfer'
             });
         }
-        
+
         // Stage 5-6: 24→12 Transfer
         if (timeline.sequential_transfer) {
             stagesHTML += buildStage(stageNumber++, 'Transfer 24→12 (Sequential)', 'completed', 
@@ -1260,7 +1260,7 @@ async function loadTimeline(orderId) {
                 'Status': 'Ready to start transfer'
             });
         }
-        
+
         // Stage 7-8: Grinding
         if (timeline.grinding) {
             const status = timeline.grinding.grinding_status === 'STARTED' ? 'in-progress' : 'completed';
@@ -1279,10 +1279,10 @@ async function loadTimeline(orderId) {
                 'Status': 'Ready to start grinding'
             });
         }
-        
+
         stagesEl.innerHTML = stagesHTML;
         container.style.display = 'block';
-        
+
     } catch (error) {
         console.error('Error loading timeline:', error);
         alert(`Error loading timeline: ${error.message}`);
@@ -1292,7 +1292,7 @@ async function loadTimeline(orderId) {
 function buildStage(number, title, status, startTime, endTime, details, subDetails = '') {
     const statusClass = status;
     const statusText = status.replace('-', ' ');
-    
+
     let detailsHTML = '';
     for (const [label, value] of Object.entries(details)) {
         detailsHTML += `
@@ -1302,7 +1302,7 @@ function buildStage(number, title, status, startTime, endTime, details, subDetai
             </div>
         `;
     }
-    
+
     let timeInfo = '';
     if (startTime) {
         timeInfo += `
@@ -1319,7 +1319,7 @@ function buildStage(number, title, status, startTime, endTime, details, subDetai
                 <span class="timeline-detail-value">${new Date(endTime).toLocaleString()}</span>
             </div>
         `;
-        
+
         if (startTime) {
             const duration = new Date(endTime) - new Date(startTime);
             const hours = Math.floor(duration / (1000 * 60 * 60));
@@ -1331,7 +1331,7 @@ function buildStage(number, title, status, startTime, endTime, details, subDetai
             `;
         }
     }
-    
+
     return `
         <div class="timeline-stage ${statusClass}">
             <div class="timeline-stage-header">
@@ -1357,7 +1357,7 @@ function buildPlanDetails(plan) {
             ${plan.source_blend.map(s => `
                 <div class="timeline-sub-item">• ${s.bin_name}: ${s.percentage}% (${s.quantity.toFixed(2)} tons)</div>
             `).join('')}
-            
+
             <h5 style="margin-top: 15px;">Destination Distribution:</h5>
             ${plan.destination_distribution.map(d => `
                 <div class="timeline-sub-item">• ${d.bin_name}: ${d.quantity.toFixed(2)} tons</div>
@@ -1400,9 +1400,9 @@ function buildGrindingDetails(grinding) {
     if (grinding.reports.length === 0) {
         return '<div class="timeline-sub-details"><p>No hourly reports submitted yet.</p></div>';
     }
-    
+
     const summary = grinding.summary;
-    
+
     return `
         <div class="timeline-sub-details">
             <h5>Production Summary:</h5>
@@ -1412,7 +1412,7 @@ function buildGrindingDetails(grinding) {
             <div class="timeline-sub-item">• Tandoori: ${summary.total_tandoori.toFixed(2)} tons (${summary.avg_tandoori_percent.toFixed(1)}%)</div>
             <div class="timeline-sub-item">• Bran: ${summary.total_bran.toFixed(2)} tons (${summary.avg_bran_percent.toFixed(1)}%)</div>
             <div class="timeline-sub-item" style="font-weight: 700; margin-top: 10px;">• Grand Total: ${summary.grand_total.toFixed(2)} tons</div>
-            
+
             <h5 style="margin-top: 15px;">Hourly Reports (${grinding.reports.length} total):</h5>
             ${grinding.reports.map(r => `
                 <div class="timeline-sub-item">
@@ -1429,26 +1429,26 @@ async function initGrindingModule() {
     try {
         const binsResponse = await fetch(`${API_URL}/api/bins`);
         const binsResult = await binsResponse.json();
-        
+
         if (!binsResult.success) return;
-        
+
         const filled12HRBins = binsResult.data.filter(b => b.bin_type === '12HR' && b.current_quantity > 0);
-        
+
         if (filled12HRBins.length === 0) {
             document.getElementById('grinding-order-info').innerHTML = '<p>No 12HR bins with wheat available. Complete 24→12 transfer first.</p>';
             return;
         }
-        
+
         const ordersResponse = await fetch(`${API_URL}/api/orders`);
         const ordersResult = await ordersResponse.json();
-        
+
         if (!ordersResult.success) return;
-        
+
         const completedOrders = ordersResult.data.filter(o => o.production_stage === 'TRANSFER_24_TO_12_COMPLETED');
-        
+
         if (completedOrders.length > 0) {
             const order = completedOrders[0];
-            
+
             document.getElementById('grinding-order-info').innerHTML = `
                 <h4>Auto-Linked Order (Read-Only)</h4>
                 <p><strong>Order Number:</strong> ${order.order_number}</p>
@@ -1457,16 +1457,16 @@ async function initGrindingModule() {
                 <p><strong>Status:</strong> <span class="status-badge">${order.production_stage}</span></p>
             `;
             document.getElementById('grinding-order-info').style.display = 'block';
-            
+
             document.getElementById('grinding-bin-info').innerHTML = `
                 <h4>Source 12HR Bins (Sequential Usage)</h4>
                 ${filled12HRBins.map((bin, index) => `
                     <p><strong>Bin ${index + 1}:</strong> ${bin.bin_name} (${bin.identity_number}) - ${bin.current_quantity.toFixed(2)} tons</p>
                 `).join('')}
             `;
-            
+
             document.getElementById('grinding-controls').style.display = 'block';
-            
+
             window.currentGrindingOrder = order;
             window.current12HRBins = filled12HRBins;
         }
@@ -1480,11 +1480,11 @@ document.getElementById('start-grinding').addEventListener('click', async functi
         alert('No order detected');
         return;
     }
-    
+
     if (!confirm('Start grinding process? This will enable hourly report entry.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/api/grinding/start`, {
             method: 'POST',
@@ -1494,20 +1494,20 @@ document.getElementById('start-grinding').addEventListener('click', async functi
                 bin_ids: window.current12HRBins.map(b => b.id)
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             document.getElementById('start-grinding').style.display = 'none';
             document.getElementById('stop-grinding').style.display = 'inline-block';
             document.getElementById('hourly-reports-section').style.display = 'block';
-            
+
             window.currentGrindingJobId = result.data.grinding_job_id;
-            
+
             const messageEl = document.getElementById('grinding-message');
             messageEl.className = 'message success';
             messageEl.textContent = 'Grinding started! Add hourly reports below.';
-            
+
             loadHourlyReports();
         } else {
             alert(`Error: ${result.error}`);
@@ -1521,7 +1521,7 @@ document.getElementById('stop-grinding').addEventListener('click', async functio
     if (!confirm('Stop grinding process? No more hourly reports can be added after stopping.')) {
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/api/grinding/stop`, {
             method: 'POST',
@@ -1530,19 +1530,19 @@ document.getElementById('stop-grinding').addEventListener('click', async functio
                 grinding_job_id: window.currentGrindingJobId
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             document.getElementById('stop-grinding').style.display = 'none';
             document.getElementById('start-grinding').style.display = 'inline-block';
-            
+
             const messageEl = document.getElementById('grinding-message');
             messageEl.className = 'message success';
             messageEl.textContent = `Grinding stopped. Duration: ${result.data.duration_hours.toFixed(2)} hours.`;
-            
+
             loadProductionSummary();
-            
+
             document.querySelectorAll('.hourly-report-card input').forEach(input => {
                 input.disabled = true;
             });
@@ -1568,7 +1568,7 @@ function loadHourlyReports() {
 function addHourlyReportRow() {
     const reportsList = document.getElementById('reports-list');
     const reportNumber = reportsList.children.length + 1;
-    
+
     const reportCard = document.createElement('div');
     reportCard.className = 'hourly-report-card';
     reportCard.id = `report-${reportNumber}`;
@@ -1624,20 +1624,20 @@ function calculateReport(reportNumber) {
     const chakki = parseFloat(document.getElementById(`chakki_${reportNumber}`).value) || 0;
     const tandoori = parseFloat(document.getElementById(`tandoori_${reportNumber}`).value) || 0;
     const bran = parseFloat(document.getElementById(`bran_${reportNumber}`).value) || 0;
-    
+
     const grandTotal = maida + suji + chakki + tandoori + bran;
-    
+
     document.getElementById(`grand_total_${reportNumber}`).value = grandTotal.toFixed(2);
-    
+
     const summaryEl = document.getElementById(`product_summary_${reportNumber}`);
-    
+
     if (grandTotal > 0) {
         const maidaPercent = (maida / grandTotal) * 100;
         const sujiPercent = (suji / grandTotal) * 100;
         const chakkiPercent = (chakki / grandTotal) * 100;
         const tandooriPercent = (tandoori / grandTotal) * 100;
         const branPercent = (bran / grandTotal) * 100;
-        
+
         summaryEl.innerHTML = `
             <h5>Product Breakdown</h5>
             <div class="product-breakdown-grid">
@@ -1681,17 +1681,17 @@ async function submitHourlyReport(reportNumber) {
     const tandoori = parseFloat(document.getElementById(`tandoori_${reportNumber}`).value) || 0;
     const bran = parseFloat(document.getElementById(`bran_${reportNumber}`).value) || 0;
     const grandTotal = parseFloat(document.getElementById(`grand_total_${reportNumber}`).value) || 0;
-    
+
     if (!startTime || !endTime) {
         alert('Please enter start and end times');
         return;
     }
-    
+
     if (grandTotal === 0) {
         alert('Please enter product quantities');
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/api/grinding/report`, {
             method: 'POST',
@@ -1709,19 +1709,19 @@ async function submitHourlyReport(reportNumber) {
                 grand_total_tons: grandTotal
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             const messageEl = document.getElementById('grinding-message');
             messageEl.className = 'message success';
             messageEl.textContent = `Report ${reportNumber} submitted successfully!`;
-            
+
             document.querySelectorAll(`#report-${reportNumber} input`).forEach(input => {
                 input.disabled = true;
             });
             document.querySelector(`#report-${reportNumber} button`).disabled = true;
-            
+
             loadProductionSummary();
         } else {
             alert(`Error: ${result.error}`);
@@ -1733,14 +1733,14 @@ async function submitHourlyReport(reportNumber) {
 
 async function loadProductionSummary() {
     if (!window.currentGrindingJobId) return;
-    
+
     try {
         const response = await fetch(`${API_URL}/api/grinding/summary/${window.currentGrindingJobId}`);
         const result = await response.json();
-        
+
         if (result.success && result.data.reports.length > 0) {
             const summary = result.data.summary;
-            
+
             document.getElementById('summary-content').innerHTML = `
                 <div class="summary-grid">
                     <div class="summary-card">
