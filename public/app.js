@@ -2026,11 +2026,15 @@ async function initPackaging() {
         }
         
         // Load shallows
-        loadShallows();
+        await loadShallows();
     } catch (error) {
         console.error('Error initializing packaging:', error);
     }
 }
+
+// TIMELINE VIEW
+
+async function loadOrdersForTimeline() {
 
 function togglePackagingSource() {
     const source = document.querySelector('input[name="packaging_source"]:checked');
