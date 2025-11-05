@@ -33,7 +33,8 @@
 
                 <div class="nav-section">
                     <div class="nav-section-title">Master Data</div>
-                    <button class="tab-btn" onclick="showTab('products-master', this)">📦 Products Master</button>
+                    <button class="tab-btn" onclick="showTab('finished-goods-master', this)">📦 Finished Goods</button>
+                    <button class="tab-btn" onclick="showTab('raw-products-master', this)">🌾 Raw Products</button>
                     <button class="tab-btn" onclick="showTab('bins-master', this)">🗄️ Bins Master</button>
                     <button class="tab-btn" onclick="showTab('godowns-master', this)">🏪 FG Godowns</button>
                     <button class="tab-btn" onclick="showTab('shallows-master', this)">🥘 Maida Shallows</button>
@@ -89,8 +90,8 @@
 
             <form id="plan-form">
                 <div class="form-group">
-                    <label>Plan Name:</label>
-                    <input type="text" id="plan_name" placeholder="e.g., Production Plan 2025-01" required>
+                    <label>Description (Optional):</label>
+                    <input type="text" id="plan_description" placeholder="e.g., Production Plan 2025-01">
                 </div>
 
                 <div class="section">
@@ -220,30 +221,55 @@
             <div id="grinding-message" class="message"></div>
         </div>
 
-        <div id="products-master-tab" class="tab-content">
-            <h2>Products Master Configuration</h2>
+        <div id="finished-goods-master-tab" class="tab-content">
+            <h2>Finished Goods Master</h2>
+            <p class="hint">These are the final products that will be sold to customers. They will appear in order creation dropdowns.</p>
 
             <div class="master-section">
-                <h3>Add New Product</h3>
-                <form id="product-form">
+                <h3>Add New Finished Good</h3>
+                <form id="finished-good-form">
                     <div class="form-row">
                         <div class="form-group">
                             <label>Product Name:</label>
-                            <input type="text" id="product_name" placeholder="e.g., Wheat Flour" required>
+                            <input type="text" id="finished_good_name" placeholder="e.g., Wheat Flour" required>
                         </div>
                         <div class="form-group">
                             <label>Initial Name:</label>
-                            <input type="text" id="initial_name" placeholder="e.g., WF" required>
+                            <input type="text" id="finished_good_initial" placeholder="e.g., WF" required>
                         </div>
-                        <button type="submit" class="btn-primary">Add Product</button>
+                        <button type="submit" class="btn-primary">Add Finished Good</button>
                     </div>
                 </form>
-                <div id="product-message" class="message"></div>
+                <div id="finished-good-message" class="message"></div>
             </div>
 
             <div class="master-section">
-                <h3>All Products</h3>
-                <div id="products-list"></div>
+                <h3>All Finished Goods</h3>
+                <div id="finished-goods-list"></div>
+            </div>
+        </div>
+
+        <div id="raw-products-master-tab" class="tab-content">
+            <h2>Raw Products Master</h2>
+            <p class="hint">These are intermediate products used for packaging and hourly reports (e.g., Maida, Suji, Chakki Ata, Tandoori, Bran).</p>
+
+            <div class="master-section">
+                <h3>Add New Raw Product</h3>
+                <form id="raw-product-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Product Name:</label>
+                            <input type="text" id="raw_product_name" placeholder="e.g., Maida" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Add Raw Product</button>
+                    </div>
+                </form>
+                <div id="raw-product-message" class="message"></div>
+            </div>
+
+            <div class="master-section">
+                <h3>All Raw Products</h3>
+                <div id="raw-products-list"></div>
             </div>
         </div>
 

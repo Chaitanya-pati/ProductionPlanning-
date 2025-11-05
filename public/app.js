@@ -31,8 +31,10 @@ function showTab(tabName, clickedElement) {
         loadPlansForBlendedTransfer();
     } else if (tabName === 'transfer-sequential') {
         loadOrdersForSequentialTransfer();
-    } else if (tabName === 'products-master') {
-        loadProducts();
+    } else if (tabName === 'finished-goods-master') {
+        loadFinishedGoods();
+    } else if (tabName === 'raw-products-master') {
+        loadRawProducts();
     } else if (tabName === 'bins-master') {
         loadBins();
     } else if (tabName === 'timeline') {
@@ -76,7 +78,7 @@ async function loadOrders() {
 
 async function loadProductsForOrder() {
     try {
-        const response = await fetch(`${API_URL}/api/products`);
+        const response = await fetch(`${API_URL}/api/finished-goods`);
         const result = await response.json();
 
         const select = document.getElementById('product_type');
@@ -87,10 +89,10 @@ async function loadProductsForOrder() {
                     `<option value="${product.product_name}">${product.product_name} (${product.initial_name})</option>`
                 ).join('');
         } else {
-            select.innerHTML = '<option value="">No products found. Add products in Products Master</option>';
+            select.innerHTML = '<option value="">No finished goods found. Add products in Finished Goods Master</option>';
         }
     } catch (error) {
-        console.error('Error loading products:', error);
+        console.error('Error loading finished goods:', error);
     }
 }
 
@@ -404,7 +406,7 @@ document.getElementById('plan-form').addEventListener('submit', async (e) => {
 
     const planData = {
         order_id: parseInt(orderId),
-        plan_name: document.getElementById('plan_name').value,
+        description: document.getElementById('plan_description').value,
         source_blend,
         destination_distribution
     };
@@ -421,7 +423,7 @@ document.getElementById('plan-form').addEventListener('submit', async (e) => {
 
         if (result.success) {
             messageEl.className = 'message success';
-            messageEl.textContent = `Production plan "${planData.plan_name}" created successfully! Order status updated to PLANNED.`;
+            messageEl.textContent = `Production plan created successfully! Order status updated to PLANNED.`;
             document.getElementById('plan-form').reset();
             document.getElementById('order-details').classList.remove('show');
             setTimeout(() => {
@@ -438,12 +440,13 @@ document.getElementById('plan-form').addEventListener('submit', async (e) => {
     }
 });
 
-async function loadProducts() {
+// Load Finished Goods
+async function loadFinishedGoods() {
     try {
-        const response = await fetch(`${API_URL}/api/products`);
+        const response = await fetch(`${API_URL}/api/finished-goods`);
         const result = await response.json();
 
-        const listEl = document.getElementById('products-list');
+        const listEl = document.getElementById('finished-goods-list');
 
         if (result.success && result.data.length > 0) {
             listEl.innerHTML = result.data.map(product => `
@@ -455,49 +458,120 @@ async function loadProducts() {
                 </div>
             `).join('');
         } else {
-            listEl.innerHTML = '<p style="text-align: center; color: #666;">No products yet. Add your first product!</p>';
+            listEl.innerHTML = '<p style="text-align: center; color: #666;">No finished goods yet. Add your first finished good!</p>';
         }
     } catch (error) {
-        console.error('Error loading products:', error);
+        console.error('Error loading finished goods:', error);
     }
 }
 
-document.getElementById('product-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const productData = {
-        product_name: document.getElementById('product_name').value,
-        initial_name: document.getElementById('initial_name').value
-    };
-
+// Load Raw Products
+async function loadRawProducts() {
     try {
-        const response = await fetch(`${API_URL}/api/products`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(productData)
-        });
-
+        const response = await fetch(`${API_URL}/api/raw-products`);
         const result = await response.json();
-        const messageEl = document.getElementById('product-message');
 
-        if (result.success) {
-            messageEl.className = 'message success';
-            messageEl.textContent = `Product "${productData.product_name}" added successfully!`;
-            document.getElementById('product-form').reset();
-            loadProducts();
-            setTimeout(() => {
-                messageEl.style.display = 'none';
-            }, 3000);
+        const listEl = document.getElementById('raw-products-list');
+
+        if (result.success && result.data.length > 0) {
+            listEl.innerHTML = result.data.map(product => `
+                <div class="item-card">
+                    <div class="item-info">
+                        <p><strong>Product:</strong> ${product.product_name}</p>
+                    </div>
+                </div>
+            `).join('');
         } else {
-            messageEl.className = 'message error';
-            messageEl.textContent = `Error: ${result.error}`;
+            listEl.innerHTML = '<p style="text-align: center; color: #666;">No raw products yet. Add your first raw product!</p>';
         }
     } catch (error) {
-        const messageEl = document.getElementById('product-message');
-        messageEl.className = 'message error';
-        messageEl.textContent = `Error: ${error.message}`;
+        console.error('Error loading raw products:', error);
     }
-});
+}
+
+// Backward compatibility
+async function loadProducts() {
+    loadFinishedGoods();
+}
+
+// Finished Goods Form Handler
+if (document.getElementById('finished-good-form')) {
+    document.getElementById('finished-good-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const productData = {
+            product_name: document.getElementById('finished_good_name').value,
+            initial_name: document.getElementById('finished_good_initial').value
+        };
+
+        try {
+            const response = await fetch(`${API_URL}/api/finished-goods`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(productData)
+            });
+
+            const result = await response.json();
+            const messageEl = document.getElementById('finished-good-message');
+
+            if (result.success) {
+                messageEl.className = 'message success';
+                messageEl.textContent = `Finished good "${productData.product_name}" added successfully!`;
+                document.getElementById('finished-good-form').reset();
+                loadFinishedGoods();
+                setTimeout(() => {
+                    messageEl.style.display = 'none';
+                }, 3000);
+            } else {
+                messageEl.className = 'message error';
+                messageEl.textContent = `Error: ${result.error}`;
+            }
+        } catch (error) {
+            const messageEl = document.getElementById('finished-good-message');
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${error.message}`;
+        }
+    });
+}
+
+// Raw Products Form Handler
+if (document.getElementById('raw-product-form')) {
+    document.getElementById('raw-product-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const productData = {
+            product_name: document.getElementById('raw_product_name').value
+        };
+
+        try {
+            const response = await fetch(`${API_URL}/api/raw-products`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(productData)
+            });
+
+            const result = await response.json();
+            const messageEl = document.getElementById('raw-product-message');
+
+            if (result.success) {
+                messageEl.className = 'message success';
+                messageEl.textContent = `Raw product "${productData.product_name}" added successfully!`;
+                document.getElementById('raw-product-form').reset();
+                loadRawProducts();
+                setTimeout(() => {
+                    messageEl.style.display = 'none';
+                }, 3000);
+            } else {
+                messageEl.className = 'message error';
+                messageEl.textContent = `Error: ${result.error}`;
+            }
+        } catch (error) {
+            const messageEl = document.getElementById('raw-product-message');
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${error.message}`;
+        }
+    });
+}
 
 async function loadBins() {
     try {

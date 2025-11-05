@@ -16,7 +16,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS production_plans (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     order_id INTEGER NOT NULL,
-    plan_name TEXT NOT NULL,
+    description TEXT,
     plan_status TEXT DEFAULT 'ACTIVE',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id)
@@ -48,10 +48,16 @@ db.exec(`
     identity_number TEXT
   );
 
-  CREATE TABLE IF NOT EXISTS products (
+  CREATE TABLE IF NOT EXISTS finished_goods (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     product_name TEXT UNIQUE NOT NULL,
     initial_name TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS raw_products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_name TEXT UNIQUE NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -103,6 +109,8 @@ db.exec(`
     transferred_quantity REAL DEFAULT 0,
     started_at DATETIME,
     completed_at DATETIME,
+    transfer_in_at DATETIME,
+    transfer_out_at DATETIME,
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (plan_id) REFERENCES production_plans(id),
     FOREIGN KEY (destination_bin_id) REFERENCES bins(id)
@@ -116,6 +124,8 @@ db.exec(`
     status TEXT DEFAULT 'READY',
     started_at DATETIME,
     stopped_at DATETIME,
+    outgoing_moisture REAL,
+    water_added REAL,
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (source_bin_id) REFERENCES bins(id)
   );
@@ -149,6 +159,10 @@ db.exec(`
     bin_id INTEGER NOT NULL,
     bin_sequence_order INTEGER NOT NULL,
     status TEXT DEFAULT 'PENDING',
+    outgoing_moisture REAL,
+    water_added REAL,
+    transfer_in_at DATETIME,
+    transfer_out_at DATETIME,
     FOREIGN KEY (grinding_job_id) REFERENCES grinding_jobs(id),
     FOREIGN KEY (bin_id) REFERENCES bins(id)
   );
@@ -227,9 +241,96 @@ db.exec(`
   );
 `);
 
+// Migration: Add identity_number to bins if it doesn't exist
 try {
   db.exec(`ALTER TABLE bins ADD COLUMN identity_number TEXT`);
 } catch (e) {
+  // Column already exists
+}
+
+// Migration: Rename products table to finished_goods if it exists
+try {
+  const productsTableExists = db.prepare(`
+    SELECT name FROM sqlite_master WHERE type='table' AND name='products'
+  `).get();
+  
+  if (productsTableExists) {
+    // Check if products table has any rows
+    const productCount = db.prepare('SELECT COUNT(*) as count FROM products').get();
+    
+    if (productCount && productCount.count > 0) {
+      // Clear seeded data from finished_goods first (to avoid ID conflicts)
+      db.exec(`DELETE FROM finished_goods`);
+      
+      // Migrate existing products data to finished_goods
+      db.exec(`
+        INSERT OR REPLACE INTO finished_goods (id, product_name, initial_name, created_at)
+        SELECT id, product_name, initial_name, created_at FROM products;
+      `);
+      
+      console.log(`Migrated ${productCount.count} products to finished_goods successfully`);
+    }
+    
+    // Drop the old products table
+    db.exec(`DROP TABLE products`);
+  }
+} catch (e) {
+  // Migration already done or table doesn't exist
+  console.log('Products migration skipped:', e.message);
+}
+
+// Migration: Add new columns to transfer tables if they don't exist
+try {
+  db.exec(`ALTER TABLE destination_bin_transfers ADD COLUMN transfer_in_at DATETIME`);
+  db.exec(`ALTER TABLE destination_bin_transfers ADD COLUMN transfer_out_at DATETIME`);
+} catch (e) {
+  // Columns already exist
+}
+
+try {
+  db.exec(`ALTER TABLE sequential_transfer_jobs ADD COLUMN outgoing_moisture REAL`);
+  db.exec(`ALTER TABLE sequential_transfer_jobs ADD COLUMN water_added REAL`);
+} catch (e) {
+  // Columns already exist
+}
+
+try {
+  db.exec(`ALTER TABLE grinding_source_bins ADD COLUMN outgoing_moisture REAL`);
+  db.exec(`ALTER TABLE grinding_source_bins ADD COLUMN water_added REAL`);
+  db.exec(`ALTER TABLE grinding_source_bins ADD COLUMN transfer_in_at DATETIME`);
+  db.exec(`ALTER TABLE grinding_source_bins ADD COLUMN transfer_out_at DATETIME`);
+} catch (e) {
+  // Columns already exist
+}
+
+// Migration: Rename plan_name to description in production_plans
+try {
+  const planNameExists = db.prepare(`
+    SELECT sql FROM sqlite_master WHERE type='table' AND name='production_plans'
+  `).get();
+  
+  if (planNameExists && planNameExists.sql.includes('plan_name')) {
+    // Create new table with description, copy data, drop old table
+    db.exec(`
+      CREATE TABLE production_plans_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id INTEGER NOT NULL,
+        description TEXT,
+        plan_status TEXT DEFAULT 'ACTIVE',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (order_id) REFERENCES orders(id)
+      );
+      
+      INSERT INTO production_plans_new (id, order_id, description, plan_status, created_at)
+      SELECT id, order_id, plan_name, plan_status, created_at FROM production_plans;
+      
+      DROP TABLE production_plans;
+      ALTER TABLE production_plans_new RENAME TO production_plans;
+    `);
+    console.log('Migrated production_plans.plan_name to description successfully');
+  }
+} catch (e) {
+  // Migration already done or table doesn't exist
 }
 
 const initBins = db.prepare(`
@@ -251,17 +352,31 @@ if (binCheck.count === 0) {
   initBins.run(304, '12HR Bin 304', '12HR', 25, '12HR-304');
 }
 
-const initProducts = db.prepare(`
-  INSERT OR IGNORE INTO products (product_name, initial_name)
+const initFinishedGoods = db.prepare(`
+  INSERT OR IGNORE INTO finished_goods (product_name, initial_name)
   VALUES (?, ?)
 `);
 
-const productCheck = db.prepare('SELECT COUNT(*) as count FROM products').get();
-if (productCheck.count === 0) {
-  initProducts.run('Wheat Flour', 'WF');
-  initProducts.run('Maida', 'MD');
-  initProducts.run('Suji', 'SJ');
-  initProducts.run('Atta', 'AT');
+const finishedGoodsCheck = db.prepare('SELECT COUNT(*) as count FROM finished_goods').get();
+if (finishedGoodsCheck.count === 0) {
+  initFinishedGoods.run('Wheat Flour', 'WF');
+  initFinishedGoods.run('Maida', 'MD');
+  initFinishedGoods.run('Suji', 'SJ');
+  initFinishedGoods.run('Atta', 'AT');
+}
+
+const initRawProducts = db.prepare(`
+  INSERT OR IGNORE INTO raw_products (product_name)
+  VALUES (?)
+`);
+
+const rawProductsCheck = db.prepare('SELECT COUNT(*) as count FROM raw_products').get();
+if (rawProductsCheck.count === 0) {
+  initRawProducts.run('Maida');
+  initRawProducts.run('Suji');
+  initRawProducts.run('Chakki Ata');
+  initRawProducts.run('Tandoori');
+  initRawProducts.run('Bran');
 }
 
 const initGodowns = db.prepare(`

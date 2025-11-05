@@ -28,10 +28,10 @@ app.post('/api/orders', (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    // Get product initial
-    const product = db.prepare('SELECT initial_name FROM products WHERE product_name = ?').get(product_type);
+    // Get finished good initial
+    const product = db.prepare('SELECT initial_name FROM finished_goods WHERE product_name = ?').get(product_type);
     if (!product) {
-      return res.status(400).json({ success: false, error: 'Product not found' });
+      return res.status(400).json({ success: false, error: 'Finished good not found' });
     }
 
     // Generate order number: {INITIAL}-{YEAR}-{SEQUENCE}
@@ -92,9 +92,9 @@ app.get('/api/bins', (req, res) => {
 
 app.post('/api/plans', (req, res) => {
   try {
-    const { order_id, plan_name, source_blend, destination_distribution } = req.body;
+    const { order_id, description, source_blend, destination_distribution } = req.body;
     
-    if (!order_id || !plan_name || !source_blend || !destination_distribution) {
+    if (!order_id || !source_blend || !destination_distribution) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
@@ -117,10 +117,10 @@ app.post('/api/plans', (req, res) => {
     }
 
     const insertPlan = db.prepare(`
-      INSERT INTO production_plans (order_id, plan_name, plan_status)
+      INSERT INTO production_plans (order_id, description, plan_status)
       VALUES (?, ?, 'ACTIVE')
     `);
-    const planResult = insertPlan.run(order_id, plan_name);
+    const planResult = insertPlan.run(order_id, description || null);
     const planId = planResult.lastInsertRowid;
 
     const insertSourceBlend = db.prepare(`
@@ -149,7 +149,7 @@ app.post('/api/plans', (req, res) => {
 
     res.json({ 
       success: true, 
-      data: { plan_id: planId, order_id, plan_name, status: 'PLANNED' }
+      data: { plan_id: planId, order_id, description, status: 'PLANNED' }
     });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
@@ -197,16 +197,17 @@ app.get('/api/plans/:order_id', (req, res) => {
   }
 });
 
-app.get('/api/products', (req, res) => {
+// FINISHED GOODS APIs
+app.get('/api/finished-goods', (req, res) => {
   try {
-    const products = db.prepare('SELECT * FROM products ORDER BY product_name').all();
+    const products = db.prepare('SELECT * FROM finished_goods ORDER BY product_name').all();
     res.json({ success: true, data: products });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-app.post('/api/products', (req, res) => {
+app.post('/api/finished-goods', (req, res) => {
   try {
     const { product_name, initial_name } = req.body;
     
@@ -215,7 +216,7 @@ app.post('/api/products', (req, res) => {
     }
 
     const stmt = db.prepare(`
-      INSERT INTO products (product_name, initial_name)
+      INSERT INTO finished_goods (product_name, initial_name)
       VALUES (?, ?)
     `);
     
@@ -225,6 +226,50 @@ app.post('/api/products', (req, res) => {
       success: true, 
       data: { id: result.lastInsertRowid, product_name, initial_name }
     });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// RAW PRODUCTS APIs
+app.get('/api/raw-products', (req, res) => {
+  try {
+    const products = db.prepare('SELECT * FROM raw_products ORDER BY product_name').all();
+    res.json({ success: true, data: products });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/raw-products', (req, res) => {
+  try {
+    const { product_name } = req.body;
+    
+    if (!product_name) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO raw_products (product_name)
+      VALUES (?)
+    `);
+    
+    const result = stmt.run(product_name);
+    
+    res.json({ 
+      success: true, 
+      data: { id: result.lastInsertRowid, product_name }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Legacy endpoint for backward compatibility (maps to finished goods)
+app.get('/api/products', (req, res) => {
+  try {
+    const products = db.prepare('SELECT * FROM finished_goods ORDER BY product_name').all();
+    res.json({ success: true, data: products });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -319,15 +364,15 @@ app.post('/api/transfers/blended/start', (req, res) => {
     if (existingTransfer) {
       const updateStmt = db.prepare(`
         UPDATE destination_bin_transfers 
-        SET status = 'IN_PROGRESS', started_at = CURRENT_TIMESTAMP 
+        SET status = 'IN_PROGRESS', started_at = CURRENT_TIMESTAMP, transfer_in_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `);
       updateStmt.run(existingTransfer.id);
     } else {
       const insertStmt = db.prepare(`
         INSERT INTO destination_bin_transfers 
-        (order_id, plan_id, destination_bin_id, status, target_quantity, started_at)
-        VALUES (?, ?, ?, 'IN_PROGRESS', ?, CURRENT_TIMESTAMP)
+        (order_id, plan_id, destination_bin_id, status, target_quantity, started_at, transfer_in_at)
+        VALUES (?, ?, ?, 'IN_PROGRESS', ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `);
       insertStmt.run(order_id, plan_id, destination_bin_id, destDistribution.distribution_quantity);
     }
@@ -401,10 +446,10 @@ app.post('/api/transfers/blended/stop', (req, res) => {
     // Add the full target quantity to destination bin (this is the combined blend)
     updateDestBin.run(targetQuantity, destination_bin_id);
 
-    // Update transfer record
+    // Update transfer record with transfer_out_at timestamp
     const updateTransfer = db.prepare(`
       UPDATE destination_bin_transfers 
-      SET status = 'COMPLETED', transferred_quantity = ?, completed_at = CURRENT_TIMESTAMP 
+      SET status = 'COMPLETED', transferred_quantity = ?, completed_at = CURRENT_TIMESTAMP, transfer_out_at = CURRENT_TIMESTAMP 
       WHERE id = ?
     `);
     updateTransfer.run(targetQuantity, transfer.id);
@@ -650,6 +695,127 @@ app.get('/api/timeline/:orderId', (req, res) => {
   }
 });
 
+// Start sequential transfer (24→12 or similar) with timer
+app.post('/api/transfers/sequential/start', (req, res) => {
+  try {
+    const { order_id, source_bin_id, transfer_quantity } = req.body;
+    
+    if (!order_id || !source_bin_id) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const sourceBin = db.prepare('SELECT * FROM bins WHERE id = ?').get(source_bin_id);
+    if (!sourceBin) {
+      return res.status(404).json({ success: false, error: 'Source bin not found' });
+    }
+
+    // Create sequential transfer job with started_at timer
+    const insertJob = db.prepare(`
+      INSERT INTO sequential_transfer_jobs (order_id, source_bin_id, transfer_quantity, status, started_at)
+      VALUES (?, ?, ?, 'IN_PROGRESS', CURRENT_TIMESTAMP)
+    `);
+    const result = insertJob.run(order_id, source_bin_id, transfer_quantity || sourceBin.current_quantity);
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        job_id: result.lastInsertRowid,
+        status: 'IN_PROGRESS',
+        started_at: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Stop sequential transfer with moisture tracking
+app.post('/api/transfers/sequential/stop', (req, res) => {
+  try {
+    const { job_id, order_id, destination_sequence, outgoing_moisture, water_added } = req.body;
+    
+    if (!job_id || !order_id || !destination_sequence || !Array.isArray(destination_sequence)) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const job = db.prepare('SELECT * FROM sequential_transfer_jobs WHERE id = ?').get(job_id);
+    if (!job) {
+      return res.status(404).json({ success: false, error: 'Transfer job not found' });
+    }
+
+    if (job.status !== 'IN_PROGRESS') {
+      return res.status(400).json({ success: false, error: 'Transfer is not in progress' });
+    }
+
+    const sourceBin = db.prepare('SELECT * FROM bins WHERE id = ?').get(job.source_bin_id);
+    let remainingQuantity = job.transfer_quantity;
+    let totalTransferred = 0;
+    const distributionDetails = [];
+
+    const insertDestinationBin = db.prepare(`
+      INSERT INTO sequential_transfer_bins (sequential_job_id, destination_bin_id, sequence_order, status, quantity_transferred)
+      VALUES (?, ?, ?, 'COMPLETED', ?)
+    `);
+
+    const updateBin = db.prepare('UPDATE bins SET current_quantity = ? WHERE id = ?');
+
+    destination_sequence.forEach((destBinId, index) => {
+      const destBin = db.prepare('SELECT * FROM bins WHERE id = ?').get(destBinId);
+      if (!destBin) {
+        throw new Error(`Destination bin ${destBinId} not found`);
+      }
+
+      const availableSpace = destBin.capacity - destBin.current_quantity;
+      const transferAmount = Math.min(remainingQuantity, availableSpace);
+
+      if (transferAmount > 0) {
+        insertDestinationBin.run(job_id, destBinId, index + 1, transferAmount);
+        updateBin.run(destBin.current_quantity + transferAmount, destBinId);
+        
+        distributionDetails.push({
+          bin_name: destBin.bin_name,
+          transferred: transferAmount.toFixed(2)
+        });
+        
+        remainingQuantity -= transferAmount;
+        totalTransferred += transferAmount;
+      }
+    });
+
+    // Update source bin quantity
+    updateBin.run(sourceBin.current_quantity - totalTransferred, job.source_bin_id);
+
+    // Update job with stopped_at, moisture, and water data
+    const updateJob = db.prepare(`
+      UPDATE sequential_transfer_jobs 
+      SET status = 'COMPLETED', stopped_at = CURRENT_TIMESTAMP, outgoing_moisture = ?, water_added = ?
+      WHERE id = ?
+    `);
+    updateJob.run(outgoing_moisture || null, water_added || null, job_id);
+
+    // Update order status
+    const updateOrder = db.prepare(`
+      UPDATE orders SET production_stage = 'TRANSFER_24_TO_12_COMPLETED' WHERE id = ?
+    `);
+    updateOrder.run(order_id);
+
+    res.json({ 
+      success: true, 
+      data: { 
+        job_id,
+        status: 'COMPLETED',
+        total_transferred: totalTransferred,
+        distribution_details: distributionDetails,
+        outgoing_moisture,
+        water_added
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Legacy sequential transfer endpoint (kept for backward compatibility)
 app.post('/api/transfers/sequential', (req, res) => {
   try {
     const { order_id, source_bin_id, destination_sequence, transfer_quantity } = req.body;
@@ -752,6 +918,94 @@ app.post('/api/transfers/sequential', (req, res) => {
   }
 });
 
+// Get sequential transfer jobs with timing and moisture data
+app.get('/api/transfers/sequential/:orderId', (req, res) => {
+  try {
+    const jobs = db.prepare(`
+      SELECT 
+        stj.*,
+        b.bin_name as source_bin_name,
+        CASE 
+          WHEN stj.started_at IS NOT NULL AND stj.stopped_at IS NOT NULL 
+          THEN (julianday(stj.stopped_at) - julianday(stj.started_at)) * 24 * 60
+          ELSE NULL
+        END as duration_minutes
+      FROM sequential_transfer_jobs stj
+      JOIN bins b ON stj.source_bin_id = b.id
+      WHERE stj.order_id = ?
+      ORDER BY stj.started_at DESC
+    `).all(req.params.orderId);
+
+    for (let job of jobs) {
+      job.destination_bins = db.prepare(`
+        SELECT 
+          stb.*,
+          b.bin_name as destination_bin_name
+        FROM sequential_transfer_bins stb
+        JOIN bins b ON stb.destination_bin_id = b.id
+        WHERE stb.sequential_job_id = ?
+        ORDER BY stb.sequence_order
+      `).all(job.id);
+    }
+
+    res.json({ success: true, data: jobs });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get bin duration information for a specific bin
+app.get('/api/bins/:binId/duration/:orderId', (req, res) => {
+  try {
+    const { binId, orderId } = req.params;
+    
+    // Check if it's a 24HR bin (from destination_bin_transfers)
+    const transfer24hr = db.prepare(`
+      SELECT 
+        transfer_in_at,
+        transfer_out_at,
+        CASE 
+          WHEN transfer_in_at IS NOT NULL AND transfer_out_at IS NOT NULL 
+          THEN (julianday(transfer_out_at) - julianday(transfer_in_at)) * 24
+          ELSE NULL
+        END as duration_hours
+      FROM destination_bin_transfers
+      WHERE destination_bin_id = ? AND order_id = ?
+      AND transfer_in_at IS NOT NULL
+    `).get(binId, orderId);
+    
+    if (transfer24hr) {
+      return res.json({ success: true, data: { ...transfer24hr, bin_type: '24HR' } });
+    }
+    
+    // Check if it's a 12HR bin (from grinding_source_bins)
+    const transfer12hr = db.prepare(`
+      SELECT 
+        gsb.transfer_in_at,
+        gsb.transfer_out_at,
+        gsb.outgoing_moisture,
+        gsb.water_added,
+        CASE 
+          WHEN gsb.transfer_in_at IS NOT NULL AND gsb.transfer_out_at IS NOT NULL 
+          THEN (julianday(gsb.transfer_out_at) - julianday(gsb.transfer_in_at)) * 24
+          ELSE NULL
+        END as duration_hours
+      FROM grinding_source_bins gsb
+      JOIN grinding_jobs gj ON gsb.grinding_job_id = gj.id
+      WHERE gsb.bin_id = ? AND gj.order_id = ?
+      AND gsb.transfer_in_at IS NOT NULL
+    `).get(binId, orderId);
+    
+    if (transfer12hr) {
+      return res.json({ success: true, data: { ...transfer12hr, bin_type: '12HR' } });
+    }
+    
+    res.json({ success: false, error: 'No duration data found for this bin' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/api/transfers/:orderId', (req, res) => {
   try {
     const transfers = db.prepare(`
@@ -795,7 +1049,7 @@ app.get('/api/transfers/:orderId', (req, res) => {
 
 app.post('/api/grinding/start', (req, res) => {
   try {
-    const { order_id, bin_ids } = req.body;
+    const { order_id, bin_ids, bin_moisture_data } = req.body;
     
     if (!order_id || !bin_ids || !Array.isArray(bin_ids)) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
@@ -809,13 +1063,17 @@ app.post('/api/grinding/start', (req, res) => {
     const grindingJobId = jobResult.lastInsertRowid;
     
     const insertBin = db.prepare(`
-      INSERT INTO grinding_source_bins (grinding_job_id, bin_id, bin_sequence_order, status)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO grinding_source_bins (grinding_job_id, bin_id, bin_sequence_order, status, outgoing_moisture, water_added, transfer_out_at)
+      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
     
     bin_ids.forEach((binId, index) => {
       const status = index === 0 ? 'IN_USE' : 'PENDING';
-      insertBin.run(grindingJobId, binId, index + 1, status);
+      const moistureData = bin_moisture_data && bin_moisture_data[binId];
+      const outgoingMoisture = moistureData ? moistureData.outgoing_moisture : null;
+      const waterAdded = moistureData ? moistureData.water_added : null;
+      
+      insertBin.run(grindingJobId, binId, index + 1, status, outgoingMoisture, waterAdded);
     });
     
     const updateOrder = db.prepare(`
