@@ -538,6 +538,7 @@ app.post('/api/transfers/sequential', (req, res) => {
     }
     
     let totalTransferred = 0;
+    const distributionDetails = [];
 
     const insertTransferJob = db.prepare(`
       INSERT INTO transfer_jobs (order_id, transfer_type, status, total_quantity)
@@ -575,6 +576,11 @@ app.post('/api/transfers/sequential', (req, res) => {
 
         updateBin.run(destBin.current_quantity + transferAmount, destBinId);
         
+        distributionDetails.push({
+          bin_name: destBin.bin_name,
+          transferred: transferAmount.toFixed(2)
+        });
+        
         remainingQuantity -= transferAmount;
         totalTransferred += transferAmount;
       }
@@ -600,7 +606,8 @@ app.post('/api/transfers/sequential', (req, res) => {
         transfer_job_id: transferJobId, 
         status: 'COMPLETED',
         total_quantity: totalTransferred,
-        remaining_in_source: remainingQuantity
+        remaining_in_source: remainingQuantity,
+        distribution_details: distributionDetails
       }
     });
   } catch (error) {

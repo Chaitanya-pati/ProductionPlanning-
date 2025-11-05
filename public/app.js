@@ -903,14 +903,21 @@ async function load12HRBinsSequence() {
             
             if (bins12HR.length > 0) {
                 container.innerHTML = `
-                    <p class="hint">✓ Select bins in the order you want to fill them. The system will fill each bin sequentially to its capacity.</p>
-                    ${bins12HR.map(bin => `
-                        <label class="sequence-bin-item" data-bin-id="${bin.id}">
-                            <input type="checkbox" class="bin-checkbox" value="${bin.id}">
-                            <span class="bin-info">${bin.bin_name} (${bin.identity_number})</span>
-                            <span class="bin-status">Available: ${(bin.capacity - bin.current_quantity).toFixed(2)}/${bin.capacity} tons</span>
-                        </label>
-                    `).join('')}
+                    <p class="hint">Select which 12HR bins to use. They will be filled in sequence order.</p>
+                    ${bins12HR.map((bin, index) => {
+                        const available = bin.capacity - bin.current_quantity;
+                        return `
+                            <label class="sequence-bin-item" data-bin-id="${bin.id}">
+                                <input type="checkbox" class="bin-checkbox" value="${bin.id}">
+                                <div class="bin-details">
+                                    <strong>${bin.bin_name}</strong> (Sequence: ${index + 1})
+                                    <div class="bin-capacity-info">
+                                        Current: ${bin.current_quantity}/${bin.capacity} tons • Available: ${available.toFixed(2)} tons
+                                    </div>
+                                </div>
+                            </label>
+                        `;
+                    }).join('')}
                 `;
             } else {
                 container.innerHTML = '<p>No 12HR bins found. Add them in Bins Master.</p>';
@@ -1061,8 +1068,8 @@ document.getElementById('execute-sequential-transfer').addEventListener('click',
     }
     
     const confirmMsg = transferQuantity 
-        ? `Execute sequential transfer of ${transferQuantity} tons from the 24HR bin to ${destinationSequence.length} selected 12HR bins?`
-        : `Execute sequential transfer of the full quantity from the 24HR bin to ${destinationSequence.length} selected 12HR bins?`;
+        ? `Execute sequential transfer of ${transferQuantity} tons to ${destinationSequence.length} selected 12HR bin(s)?`
+        : `Execute sequential transfer of the full quantity to ${destinationSequence.length} selected 12HR bin(s)?`;
     
     if (!confirm(confirmMsg)) {
         return;
@@ -1090,10 +1097,18 @@ document.getElementById('execute-sequential-transfer').addEventListener('click',
         
         if (result.success) {
             messageEl.className = 'message success';
-            messageEl.textContent = `Transfer completed! ${result.data.total_quantity} tons transferred. Remaining in source: ${result.data.remaining_in_source} tons.`;
+            let detailMsg = `Transfer completed! ${result.data.total_quantity} tons transferred. Remaining in source: ${result.data.remaining_in_source} tons.`;
+            if (result.data.distribution_details) {
+                detailMsg += '\n\nDistribution:';
+                result.data.distribution_details.forEach(d => {
+                    detailMsg += `\n• ${d.bin_name}: ${d.transferred} tons`;
+                });
+            }
+            messageEl.textContent = detailMsg;
+            messageEl.style.whiteSpace = 'pre-line';
             setTimeout(() => {
                 showTab('orders', document.querySelector('[onclick*="orders"]'));
-            }, 2000);
+            }, 3000);
         } else {
             messageEl.className = 'message error';
             messageEl.textContent = `Error: ${result.error}`;

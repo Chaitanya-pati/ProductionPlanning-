@@ -1,4 +1,3 @@
-
 * {
     margin: 0;
     padding: 0;
@@ -626,46 +625,46 @@ header p {
     body {
         padding: 15px 10px;
     }
-    
+
     .container {
         border-radius: 15px;
     }
-    
+
     header {
         padding: 30px 25px;
     }
-    
+
     header h1 {
         font-size: 2em;
     }
-    
+
     .tab-content {
         padding: 25px 20px;
     }
-    
+
     .tab-content h2 {
         font-size: 1.6em;
     }
-    
+
     .tabs {
         padding: 0 10px;
     }
-    
+
     .tab-btn {
         min-width: 120px;
         padding: 15px 12px;
         font-size: 0.85em;
     }
-    
+
     .section,
     .master-section {
         padding: 20px;
     }
-    
+
     .form-row {
         grid-template-columns: 1fr;
     }
-    
+
     .blend-grid,
     .dist-grid {
         grid-template-columns: 1fr;
@@ -733,44 +732,54 @@ header p {
 .sequence-bin-item {
     display: flex;
     align-items: center;
-    gap: 15px;
-    background: white;
-    padding: 16px 20px;
-    margin-bottom: 12px;
-    border-radius: 10px;
-    border: 2px solid #e2e8f0;
-    transition: all 0.3s ease;
+    padding: 12px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 10px;
     cursor: pointer;
+    transition: all 0.2s;
 }
 
 .sequence-bin-item:hover {
-    border-color: #667eea;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+    background-color: #f8f9fa;
+    border-color: #4CAF50;
 }
 
-.sequence-bin-item:has(.bin-checkbox:checked) {
-    border-color: #667eea;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+.sequence-bin-item input[type="checkbox"] {
+    margin-right: 15px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.sequence-bin-item input[type="checkbox"]:checked {
+    accent-color: #4CAF50;
+}
+
+.bin-details {
+    flex: 1;
+}
+
+.bin-details strong {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 4px;
+    color: #333;
+}
+
+.bin-capacity-info {
+    color: #666;
+    font-size: 14px;
 }
 
 .bin-info {
     flex: 1;
-    font-weight: 600;
-    color: #2d3748;
+    font-weight: 500;
 }
 
 .bin-status {
-    color: #718096;
-    font-size: 0.9em;
-    white-space: nowrap;
-}
-
-.bin-checkbox {
-    width: 22px;
-    height: 22px;
-    cursor: pointer;
-    accent-color: #667eea;
-    flex-shrink: 0;
+    color: #666;
+    font-size: 14px;
 }
 
 .status-transfer_pre_to_24_in_progress {
@@ -926,7 +935,7 @@ header p {
         grid-template-columns: 1fr;
         gap: 20px;
     }
-    
+
     .transfer-controls {
         flex-direction: row;
     }
