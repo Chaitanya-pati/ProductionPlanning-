@@ -21,6 +21,9 @@
             <button class="tab-btn" onclick="showTab('transfer-sequential', this)">Transfer 24→12</button>
             <button class="tab-btn" onclick="showTab('grinding', this)">Grinding</button>
             <button class="tab-btn" onclick="showTab('products-master', this)">Products Master</button>
+
+            <button class="tab-btn" onclick="showTab('timeline', this)">Timeline View</button>
+
             <button class="tab-btn" onclick="showTab('bins-master', this)">Bins Master</button>
         </div>
 
@@ -252,6 +255,28 @@
                             <input type="number" id="bin_current_quantity" step="0.01" placeholder="e.g., 0" value="0">
                         </div>
                         <div class="form-group">
+
+
+        <div id="timeline-tab" class="tab-content">
+            <h2>Production Timeline View</h2>
+            <p class="hint">Select an order to view its complete production timeline</p>
+            
+            <div class="form-group">
+                <label>Select Order:</label>
+                <select id="timeline_order_id">
+                    <option value="">Loading orders...</option>
+                </select>
+            </div>
+
+            <div id="timeline-container" style="display: none;">
+                <div id="timeline-order-info" class="order-details"></div>
+                
+                <div class="timeline-wrapper">
+                    <div id="timeline-stages"></div>
+                </div>
+            </div>
+        </div>
+
                             <label>Identity Number:</label>
                             <input type="text" id="bin_identity_number" placeholder="e.g., PC-01" required>
                         </div>

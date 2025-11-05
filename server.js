@@ -497,6 +497,145 @@ app.post('/api/transfers/blended', (req, res) => {
 
     const updateOrderStatus = db.prepare(`
       UPDATE orders SET production_stage = 'TRANSFER_PRE_TO_24_COMPLETED' WHERE id = ?
+
+
+// TIMELINE API
+app.get('/api/timeline/:orderId', (req, res) => {
+  try {
+    const orderId = req.params.orderId;
+    
+    // Get order
+    const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+    
+    // Get plan
+    const plans = db.prepare(`
+      SELECT 
+        pp.*,
+        json_group_array(
+          json_object(
+            'bin_id', psb.source_bin_id,
+            'bin_name', b1.bin_name,
+            'percentage', psb.blend_percentage,
+            'quantity', psb.blend_quantity
+          )
+        ) as source_blend
+      FROM production_plans pp
+      LEFT JOIN plan_source_blend psb ON pp.id = psb.plan_id
+      LEFT JOIN bins b1 ON psb.source_bin_id = b1.id
+      WHERE pp.order_id = ?
+      GROUP BY pp.id
+    `).all(orderId);
+    
+    let plan = null;
+    if (plans.length > 0) {
+      plan = plans[0];
+      const destinations = db.prepare(`
+        SELECT 
+          pdd.destination_bin_id as bin_id,
+          b.bin_name,
+          pdd.distribution_quantity as quantity
+        FROM plan_destination_distribution pdd
+        JOIN bins b ON pdd.destination_bin_id = b.id
+        WHERE pdd.plan_id = ?
+      `).all(plan.id);
+      
+      plan.destination_distribution = destinations;
+      plan.source_blend = JSON.parse(plan.source_blend);
+    }
+    
+    // Get blended transfers
+    let blended_transfers = null;
+    if (plan) {
+      const transfers = db.prepare(`
+        SELECT 
+          dbt.*,
+          b.bin_name
+        FROM destination_bin_transfers dbt
+        JOIN bins b ON dbt.destination_bin_id = b.id
+        WHERE dbt.plan_id = ?
+        ORDER BY dbt.started_at
+      `).all(plan.id);
+      
+      if (transfers.length > 0) {
+        blended_transfers = transfers;
+      }
+    }
+    
+    // Get sequential transfer
+    const sequentialTransfers = db.prepare(`
+      SELECT * FROM transfer_jobs 
+      WHERE order_id = ? AND transfer_type = 'SEQUENTIAL'
+      ORDER BY created_at DESC
+    `).all(orderId);
+    
+    let sequential_transfer = null;
+    if (sequentialTransfers.length > 0) {
+      sequential_transfer = sequentialTransfers[0];
+      sequential_transfer.details = db.prepare(`
+        SELECT 
+          tsd.*,
+          sb.bin_name as source_bin_name,
+          db.bin_name as destination_bin_name
+        FROM transfer_sequence_details tsd
+        JOIN bins sb ON tsd.source_bin_id = sb.id
+        JOIN bins db ON tsd.destination_bin_id = db.id
+        WHERE tsd.transfer_job_id = ?
+        ORDER BY tsd.sequence_order
+      `).all(sequential_transfer.id);
+    }
+    
+    // Get grinding
+    const grindingJobs = db.prepare(`
+      SELECT * FROM grinding_jobs WHERE order_id = ? ORDER BY created_at DESC
+    `).all(orderId);
+    
+    let grinding = null;
+    if (grindingJobs.length > 0) {
+      grinding = grindingJobs[0];
+      
+      // Get hourly reports
+      grinding.reports = db.prepare(`
+        SELECT * FROM hourly_reports 
+        WHERE grinding_job_id = ? AND status = 'SUBMITTED'
+        ORDER BY report_number
+      `).all(grinding.id);
+      
+      // Calculate summary
+      if (grinding.reports.length > 0) {
+        grinding.summary = {
+          total_maida: grinding.reports.reduce((sum, r) => sum + r.maida_tons, 0),
+          total_suji: grinding.reports.reduce((sum, r) => sum + r.suji_tons, 0),
+          total_chakki: grinding.reports.reduce((sum, r) => sum + r.chakki_ata_tons, 0),
+          total_tandoori: grinding.reports.reduce((sum, r) => sum + r.tandoori_tons, 0),
+          total_bran: grinding.reports.reduce((sum, r) => sum + r.bran_tons, 0),
+          grand_total: grinding.reports.reduce((sum, r) => sum + r.grand_total_tons, 0),
+          avg_maida_percent: grinding.reports.reduce((sum, r) => sum + r.maida_percent, 0) / grinding.reports.length,
+          avg_suji_percent: grinding.reports.reduce((sum, r) => sum + r.suji_percent, 0) / grinding.reports.length,
+          avg_chakki_percent: grinding.reports.reduce((sum, r) => sum + r.chakki_ata_percent, 0) / grinding.reports.length,
+          avg_tandoori_percent: grinding.reports.reduce((sum, r) => sum + r.tandoori_percent, 0) / grinding.reports.length,
+          avg_bran_percent: grinding.reports.reduce((sum, r) => sum + r.bran_percent, 0) / grinding.reports.length
+        };
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: {
+        order,
+        plan,
+        blended_transfers,
+        sequential_transfer,
+        grinding
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
     `);
     updateOrderStatus.run(order_id);
 

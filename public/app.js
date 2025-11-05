@@ -35,6 +35,8 @@ function showTab(tabName, clickedElement) {
         loadProducts();
     } else if (tabName === 'bins-master') {
         loadBins();
+    } else if (tabName === 'timeline') {
+        loadOrdersForTimeline();
     }
 }
 
@@ -1095,6 +1097,297 @@ document.getElementById('start-sequential-transfer').addEventListener('click', a
         }
         
         const response = await fetch(`${API_URL}/api/transfers/sequential`, {
+
+
+// TIMELINE VIEW
+
+async function loadOrdersForTimeline() {
+    try {
+        const response = await fetch(`${API_URL}/api/orders`);
+        const result = await response.json();
+        
+        const select = document.getElementById('timeline_order_id');
+        
+        if (result.success && result.data.length > 0) {
+            select.innerHTML = '<option value="">Select an order</option>' + 
+                result.data.map(order => 
+                    `<option value="${order.id}">${order.order_number} - ${order.product_type} (${order.production_stage})</option>`
+                ).join('');
+        } else {
+            select.innerHTML = '<option value="">No orders found</option>';
+        }
+    } catch (error) {
+        console.error('Error loading orders:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const timelineSelect = document.getElementById('timeline_order_id');
+    if (timelineSelect) {
+        timelineSelect.addEventListener('change', async function() {
+            const orderId = this.value;
+            if (orderId) {
+                await loadTimeline(orderId);
+            } else {
+                document.getElementById('timeline-container').style.display = 'none';
+            }
+        });
+    }
+});
+
+async function loadTimeline(orderId) {
+    try {
+        const response = await fetch(`${API_URL}/api/timeline/${orderId}`);
+        const result = await response.json();
+        
+        if (!result.success) {
+            alert(`Error: ${result.error}`);
+            return;
+        }
+        
+        const timeline = result.data;
+        const container = document.getElementById('timeline-container');
+        const infoEl = document.getElementById('timeline-order-info');
+        const stagesEl = document.getElementById('timeline-stages');
+        
+        // Show order info
+        infoEl.innerHTML = `
+            <h4>Order: ${timeline.order.order_number}</h4>
+            <p><strong>Product:</strong> ${timeline.order.product_type}</p>
+            <p><strong>Quantity:</strong> ${timeline.order.quantity} tons</p>
+            <p><strong>Current Status:</strong> <span class="status-badge status-${timeline.order.production_stage.toLowerCase()}">${timeline.order.production_stage}</span></p>
+            <p><strong>Created:</strong> ${new Date(timeline.order.created_at).toLocaleString()}</p>
+        `;
+        
+        // Build timeline stages
+        let stagesHTML = '';
+        let stageNumber = 1;
+        
+        // Stage 1: Order Created
+        stagesHTML += buildStage(stageNumber++, 'Order Created', 'completed', timeline.order.created_at, null, {
+            'Product': timeline.order.product_type,
+            'Quantity': `${timeline.order.quantity} tons`,
+            'Order Number': timeline.order.order_number
+        });
+        
+        // Stage 2: Production Plan
+        if (timeline.plan) {
+            stagesHTML += buildStage(stageNumber++, 'Production Plan Created', 'completed', timeline.plan.created_at, null, {
+                'Plan Name': timeline.plan.plan_name,
+                'Source Bins': `${timeline.plan.source_blend.length} bins blended`,
+                'Destination Bins': `${timeline.plan.destination_distribution.length} bins`
+            }, buildPlanDetails(timeline.plan));
+        } else {
+            stagesHTML += buildStage(stageNumber++, 'Production Plan', 'pending', null, null, {
+                'Status': 'Awaiting plan creation'
+            });
+        }
+        
+        // Stage 3-4: PRE→24 Transfer
+        if (timeline.blended_transfers && timeline.blended_transfers.length > 0) {
+            const allCompleted = timeline.blended_transfers.every(t => t.status === 'COMPLETED');
+            const anyInProgress = timeline.blended_transfers.some(t => t.status === 'IN_PROGRESS');
+            const status = allCompleted ? 'completed' : (anyInProgress ? 'in-progress' : 'pending');
+            
+            const completedTransfers = timeline.blended_transfers.filter(t => t.status === 'COMPLETED');
+            const totalTransferred = completedTransfers.reduce((sum, t) => sum + t.transferred_quantity, 0);
+            
+            stagesHTML += buildStage(stageNumber++, 'Transfer PRE→24 (Blended)', status, 
+                timeline.blended_transfers[0].started_at, 
+                allCompleted ? timeline.blended_transfers[timeline.blended_transfers.length - 1].completed_at : null, 
+                {
+                    'Transfer Type': 'Blended (multiple sources)',
+                    'Total Transferred': `${totalTransferred.toFixed(2)} tons`,
+                    'Completed Bins': `${completedTransfers.length} / ${timeline.blended_transfers.length}`
+                }, 
+                buildBlendedTransferDetails(timeline.blended_transfers)
+            );
+        } else if (timeline.plan) {
+            stagesHTML += buildStage(stageNumber++, 'Transfer PRE→24 (Blended)', 'pending', null, null, {
+                'Status': 'Ready to start transfer'
+            });
+        }
+        
+        // Stage 5-6: 24→12 Transfer
+        if (timeline.sequential_transfer) {
+            stagesHTML += buildStage(stageNumber++, 'Transfer 24→12 (Sequential)', 'completed', 
+                timeline.sequential_transfer.created_at, 
+                timeline.sequential_transfer.completed_at, 
+                {
+                    'Transfer Type': 'Sequential filling',
+                    'Total Transferred': `${timeline.sequential_transfer.total_quantity.toFixed(2)} tons`,
+                    'Bins Filled': `${timeline.sequential_transfer.details.length} bins`
+                }, 
+                buildSequentialTransferDetails(timeline.sequential_transfer)
+            );
+        } else if (timeline.order.production_stage === 'TRANSFER_PRE_TO_24_COMPLETED') {
+            stagesHTML += buildStage(stageNumber++, 'Transfer 24→12 (Sequential)', 'pending', null, null, {
+                'Status': 'Ready to start transfer'
+            });
+        }
+        
+        // Stage 7-8: Grinding
+        if (timeline.grinding) {
+            const status = timeline.grinding.grinding_status === 'STARTED' ? 'in-progress' : 'completed';
+            stagesHTML += buildStage(stageNumber++, 'Grinding Process', status, 
+                timeline.grinding.grinding_start_time, 
+                timeline.grinding.grinding_end_time, 
+                {
+                    'Status': timeline.grinding.grinding_status,
+                    'Duration': timeline.grinding.grinding_duration_hours ? `${timeline.grinding.grinding_duration_hours.toFixed(2)} hours` : 'In Progress',
+                    'Hourly Reports': `${timeline.grinding.reports.length} submitted`
+                }, 
+                buildGrindingDetails(timeline.grinding)
+            );
+        } else if (timeline.order.production_stage === 'TRANSFER_24_TO_12_COMPLETED') {
+            stagesHTML += buildStage(stageNumber++, 'Grinding Process', 'pending', null, null, {
+                'Status': 'Ready to start grinding'
+            });
+        }
+        
+        stagesEl.innerHTML = stagesHTML;
+        container.style.display = 'block';
+        
+    } catch (error) {
+        console.error('Error loading timeline:', error);
+        alert(`Error loading timeline: ${error.message}`);
+    }
+}
+
+function buildStage(number, title, status, startTime, endTime, details, subDetails = '') {
+    const statusClass = status;
+    const statusText = status.replace('-', ' ');
+    
+    let detailsHTML = '';
+    for (const [label, value] of Object.entries(details)) {
+        detailsHTML += `
+            <div class="timeline-detail">
+                <span class="timeline-detail-label">${label}:</span>
+                <span class="timeline-detail-value">${value}</span>
+            </div>
+        `;
+    }
+    
+    let timeInfo = '';
+    if (startTime) {
+        timeInfo += `
+            <div class="timeline-detail">
+                <span class="timeline-detail-label">Started:</span>
+                <span class="timeline-detail-value">${new Date(startTime).toLocaleString()}</span>
+            </div>
+        `;
+    }
+    if (endTime) {
+        timeInfo += `
+            <div class="timeline-detail">
+                <span class="timeline-detail-label">Completed:</span>
+                <span class="timeline-detail-value">${new Date(endTime).toLocaleString()}</span>
+            </div>
+        `;
+        
+        if (startTime) {
+            const duration = new Date(endTime) - new Date(startTime);
+            const hours = Math.floor(duration / (1000 * 60 * 60));
+            const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+            timeInfo += `
+                <div class="timeline-duration">
+                    ⏱️ Duration: ${hours}h ${minutes}m
+                </div>
+            `;
+        }
+    }
+    
+    return `
+        <div class="timeline-stage ${statusClass}">
+            <div class="timeline-stage-header">
+                <div class="timeline-stage-title">
+                    <span class="timeline-stage-number">${number}</span>
+                    ${title}
+                </div>
+                <span class="timeline-stage-status ${statusClass}">${statusText}</span>
+            </div>
+            <div class="timeline-stage-content">
+                ${detailsHTML}
+                ${timeInfo}
+                ${subDetails}
+            </div>
+        </div>
+    `;
+}
+
+function buildPlanDetails(plan) {
+    return `
+        <div class="timeline-sub-details">
+            <h5>Source Blend Configuration:</h5>
+            ${plan.source_blend.map(s => `
+                <div class="timeline-sub-item">• ${s.bin_name}: ${s.percentage}% (${s.quantity.toFixed(2)} tons)</div>
+            `).join('')}
+            
+            <h5 style="margin-top: 15px;">Destination Distribution:</h5>
+            ${plan.destination_distribution.map(d => `
+                <div class="timeline-sub-item">• ${d.bin_name}: ${d.quantity.toFixed(2)} tons</div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function buildBlendedTransferDetails(transfers) {
+    return `
+        <div class="timeline-sub-details">
+            <h5>Destination Bins Transfer Status:</h5>
+            ${transfers.map(t => `
+                <div class="timeline-sub-item">
+                    • ${t.bin_name}: ${t.transferred_quantity.toFixed(2)} tons 
+                    <span style="color: ${t.status === 'COMPLETED' ? '#10b981' : '#f59e0b'}; font-weight: 600;">
+                        (${t.status})
+                    </span>
+                    ${t.completed_at ? ` - Completed: ${new Date(t.completed_at).toLocaleString()}` : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function buildSequentialTransferDetails(transfer) {
+    return `
+        <div class="timeline-sub-details">
+            <h5>Sequential Distribution:</h5>
+            ${transfer.details.map((d, idx) => `
+                <div class="timeline-sub-item">
+                    • Sequence ${idx + 1}: ${d.destination_bin_name} - ${d.quantity_transferred.toFixed(2)} tons
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function buildGrindingDetails(grinding) {
+    if (grinding.reports.length === 0) {
+        return '<div class="timeline-sub-details"><p>No hourly reports submitted yet.</p></div>';
+    }
+    
+    const summary = grinding.summary;
+    
+    return `
+        <div class="timeline-sub-details">
+            <h5>Production Summary:</h5>
+            <div class="timeline-sub-item">• Maida: ${summary.total_maida.toFixed(2)} tons (${summary.avg_maida_percent.toFixed(1)}%)</div>
+            <div class="timeline-sub-item">• Suji: ${summary.total_suji.toFixed(2)} tons (${summary.avg_suji_percent.toFixed(1)}%)</div>
+            <div class="timeline-sub-item">• Chakki Ata: ${summary.total_chakki.toFixed(2)} tons (${summary.avg_chakki_percent.toFixed(1)}%)</div>
+            <div class="timeline-sub-item">• Tandoori: ${summary.total_tandoori.toFixed(2)} tons (${summary.avg_tandoori_percent.toFixed(1)}%)</div>
+            <div class="timeline-sub-item">• Bran: ${summary.total_bran.toFixed(2)} tons (${summary.avg_bran_percent.toFixed(1)}%)</div>
+            <div class="timeline-sub-item" style="font-weight: 700; margin-top: 10px;">• Grand Total: ${summary.grand_total.toFixed(2)} tons</div>
+            
+            <h5 style="margin-top: 15px;">Hourly Reports (${grinding.reports.length} total):</h5>
+            ${grinding.reports.map(r => `
+                <div class="timeline-sub-item">
+                    • Hour ${r.report_number} (${r.start_time} - ${r.end_time}): ${r.grand_total_tons.toFixed(2)} tons
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
