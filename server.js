@@ -650,22 +650,6 @@ app.get('/api/timeline/:orderId', (req, res) => {
   }
 });
 
-    `);
-    updateOrderStatus.run(order_id);
-
-    res.json({ 
-      success: true, 
-      data: { 
-        transfer_job_id: transferJobId, 
-        status: 'COMPLETED',
-        total_quantity: totalQuantity
-      }
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 app.post('/api/transfers/sequential', (req, res) => {
   try {
     const { order_id, source_bin_id, destination_sequence, transfer_quantity } = req.body;
@@ -686,7 +670,7 @@ app.post('/api/transfers/sequential', (req, res) => {
     if (transfer_quantity && remainingQuantity > sourceBin.current_quantity) {
       return res.status(400).json({ 
         success: false, 
-        error: `Transfer quantity (${remainingQuantity} tons) exceeds available quantity (${sourceBin.current_quantity} tons)` 
+        error: 'Transfer quantity (' + remainingQuantity + ' tons) exceeds available quantity (' + sourceBin.current_quantity + ' tons)'
       });
     }
     

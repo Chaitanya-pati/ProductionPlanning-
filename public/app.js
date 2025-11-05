@@ -1097,7 +1097,42 @@ document.getElementById('start-sequential-transfer').addEventListener('click', a
         }
         
         const response = await fetch(`${API_URL}/api/transfers/sequential`, {
-
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+        
+        const result = await response.json();
+        const messageEl = document.getElementById('sequential-message');
+        
+        if (result.success) {
+            messageEl.className = 'message success';
+            let detailMsg = `Transfer completed! ${result.data.total_quantity} tons transferred. Remaining in source: ${result.data.remaining_in_source} tons.`;
+            if (result.data.distribution_details) {
+                detailMsg += '\n\nDistribution:';
+                result.data.distribution_details.forEach(d => {
+                    detailMsg += `\n• ${d.bin_name}: ${d.transferred} tons`;
+                });
+            }
+            messageEl.textContent = detailMsg;
+            messageEl.style.whiteSpace = 'pre-line';
+            
+            document.getElementById('start-sequential-transfer').style.display = 'none';
+            document.getElementById('stop-sequential-transfer').style.display = 'none';
+            
+            setTimeout(() => {
+                showTab('orders', document.querySelector('[onclick*="orders"]'));
+            }, 3000);
+        } else {
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
+        }
+    } catch (error) {
+        const messageEl = document.getElementById('sequential-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
+    }
+});
 
 // TIMELINE VIEW
 
@@ -1387,43 +1422,6 @@ function buildGrindingDetails(grinding) {
         </div>
     `;
 }
-
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-        });
-        
-        const result = await response.json();
-        const messageEl = document.getElementById('sequential-message');
-        
-        if (result.success) {
-            messageEl.className = 'message success';
-            let detailMsg = `Transfer completed! ${result.data.total_quantity} tons transferred. Remaining in source: ${result.data.remaining_in_source} tons.`;
-            if (result.data.distribution_details) {
-                detailMsg += '\n\nDistribution:';
-                result.data.distribution_details.forEach(d => {
-                    detailMsg += `\n• ${d.bin_name}: ${d.transferred} tons`;
-                });
-            }
-            messageEl.textContent = detailMsg;
-            messageEl.style.whiteSpace = 'pre-line';
-            
-            document.getElementById('start-sequential-transfer').style.display = 'none';
-            document.getElementById('stop-sequential-transfer').style.display = 'none';
-            
-            setTimeout(() => {
-                showTab('orders', document.querySelector('[onclick*="orders"]'));
-            }, 3000);
-        } else {
-            messageEl.className = 'message error';
-            messageEl.textContent = `Error: ${result.error}`;
-        }
-    } catch (error) {
-        const messageEl = document.getElementById('sequential-message');
-        messageEl.className = 'message error';
-        messageEl.textContent = `Error: ${error.message}`;
-    }
-});
 
 // GRINDING MODULE
 
