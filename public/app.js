@@ -949,7 +949,7 @@ document.getElementById('sequential_order_id').addEventListener('change', async 
 
     try {
         const response = await fetch(`${API_URL}/api/orders/${orderId}`);
-        const result = await ordersResponse.json();
+        const result = await response.json();
 
         if (result.success) {
             const order = result.data;
