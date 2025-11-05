@@ -255,7 +255,20 @@
                             <input type="number" id="bin_current_quantity" step="0.01" placeholder="e.g., 0" value="0">
                         </div>
                         <div class="form-group">
+                            <label>Identity Number:</label>
+                            <input type="text" id="bin_identity_number" placeholder="e.g., PC-01" required>
+                        </div>
+                        <button type="submit" class="btn-primary">Add Bin</button>
+                    </div>
+                </form>
+                <div id="bin-message" class="message"></div>
+            </div>
 
+            <div class="master-section">
+                <h3>All Bins</h3>
+                <div id="bins-list"></div>
+            </div>
+        </div>
 
         <div id="timeline-tab" class="tab-content">
             <h2>Production Timeline View</h2>
@@ -274,21 +287,6 @@
                 <div class="timeline-wrapper">
                     <div id="timeline-stages"></div>
                 </div>
-            </div>
-        </div>
-
-                            <label>Identity Number:</label>
-                            <input type="text" id="bin_identity_number" placeholder="e.g., PC-01" required>
-                        </div>
-                        <button type="submit" class="btn-primary">Add Bin</button>
-                    </div>
-                </form>
-                <div id="bin-message" class="message"></div>
-            </div>
-
-            <div class="master-section">
-                <h3>All Bins</h3>
-                <div id="bins-list"></div>
             </div>
         </div>
     </div>

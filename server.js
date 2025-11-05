@@ -497,7 +497,21 @@ app.post('/api/transfers/blended', (req, res) => {
 
     const updateOrderStatus = db.prepare(`
       UPDATE orders SET production_stage = 'TRANSFER_PRE_TO_24_COMPLETED' WHERE id = ?
+    `);
+    updateOrderStatus.run(order_id);
 
+    res.json({ 
+      success: true, 
+      data: { 
+        transfer_job_id: transferJobId, 
+        status: 'COMPLETED',
+        total_quantity: totalQuantity
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 // TIMELINE API
 app.get('/api/timeline/:orderId', (req, res) => {
