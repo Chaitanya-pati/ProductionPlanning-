@@ -903,20 +903,20 @@ async function load12HRBinsSequence() {
             
             if (bins12HR.length > 0) {
                 container.innerHTML = `
-                    <p class="hint">Select which 12HR bins to use. They will be filled in sequence order.</p>
+                    <p class="sequential-description">Select which 12HR bins to use. They will be filled in sequence order.</p>
                     <div class="sequential-bins-list">
                         ${bins12HR.map((bin, index) => {
                             const available = bin.capacity - bin.current_quantity;
                             return `
-                                <div class="sequence-bin-item">
+                                <div class="sequence-bin-card">
                                     <input type="checkbox" class="bin-checkbox" value="${bin.id}" id="bin_${bin.id}">
-                                    <label for="bin_${bin.id}" class="bin-label">
-                                        <div class="bin-header">
-                                            <strong>${bin.bin_name}</strong>
-                                            <span class="sequence-badge">Sequence: ${index + 1}</span>
+                                    <label for="bin_${bin.id}" class="bin-checkbox-label">
+                                        <div class="bin-name-sequence">
+                                            <strong class="bin-name-text">${bin.bin_name}</strong>
+                                            <span class="sequence-number">(Sequence: ${index + 1})</span>
                                         </div>
-                                        <div class="bin-capacity-info">
-                                            Current: ${bin.current_quantity.toFixed(2)}/${bin.capacity} tons • Available: ${available.toFixed(2)} tons
+                                        <div class="bin-capacity-details">
+                                            Current: ${bin.current_quantity.toFixed(0)}/${bin.capacity.toFixed(0)} tons • Available: ${available.toFixed(0)} tons
                                         </div>
                                     </label>
                                 </div>
