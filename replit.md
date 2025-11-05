@@ -31,10 +31,11 @@ Do not make changes to the file `Y`.
 - **Order Management**: Create production orders with product type and quantity, tracking status from CREATED to PACKAGING_COMPLETED.
 - **Production Planning**: Define source blend percentages from PRE_CLEAN bins and distribution quantities to 24HR bins, with automatic validation.
 - **Multi-Stage Transfer Processes**:
-    - **PRE→24 (Blended)**: Individual START/STOP controls for each destination 24HR bin, real-time status tracking, and automatic quantity updates.
-    - **24→12 (Sequential)**: Sequential filling of selected 12HR bins to capacity, with remaining quantity in the source bin.
+    - **PRE→24 (Blended)**: Individual START/STOP controls for each destination 24HR bin, real-time timer displays showing process duration, timestamp tracking (transfer_in_at, transfer_out_at), and automatic quantity updates.
+    - **24→12 (Sequential)**: Sequential filling of selected 12HR bins to capacity with real-time timer displays, moisture content and water addition tracking during transfer completion, timestamp tracking for duration calculation, and remaining quantity tracking in source bin.
 - **Grinding Module**: Continuous grinding process with:
     - Auto-detection of orders from filled 12HR bins.
+    - Moisture and water tracking: Capture outgoing moisture content and water added for each 12HR bin when grinding starts.
     - Hourly production reporting: submission of quantities for main products and bran, with automatic percentage calculations and validation (e.g., ~25% bran).
     - Production summary: Aggregated totals and average percentages for quality control.
     - Start/Stop grinding functionality with duration tracking.
