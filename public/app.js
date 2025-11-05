@@ -1160,38 +1160,6 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
 async function loadOrdersForSequentialTransfer() {
     try {
         const response = await fetch(`${API_URL}/api/orders`);
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(requestBody)
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            stopBtn.style.display = 'none';
-            startBtn.style.display = 'none';
-            statusValue.textContent = 'Completed';
-            statusValue.className = 'status-value completed';
-            quantityValue.textContent = `${result.data.transferred_quantity} tons`;
-            
-            
-        } else {
-            throw new Error(result.error);
-        }
-    } catch (error) {
-        stopBtn.disabled = false;
-        statusValue.textContent = 'Error';
-        statusValue.className = 'status-value error';
-
-        const messageEl = document.getElementById('blended-message');
-        messageEl.className = 'message error';
-        messageEl.textContent = `Error: ${error.message}`;
-    }
-}
-
-async function loadOrdersForSequentialTransfer() {
-    try {
-        const response = await fetch(`${API_URL}/api/orders`);
         const result = await response.json();
 
         const select = document.getElementById('sequential_order_id');
