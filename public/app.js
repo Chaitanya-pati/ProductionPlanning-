@@ -2778,15 +2778,22 @@ function toggleShallowSelection() {
 
     const maidaOptions = document.getElementById('maida-storage-options');
     const bagSection = document.getElementById('bag-packaging-section');
+    const shallowSelectionDiv = document.getElementById('shallow-selection');
 
     if (packagingSource.value === 'order') {
         if (productType === 'MAIDA') {
             maidaOptions.style.display = 'block';
-            document.querySelectorAll('input[name="maida_storage_method"]').forEach(radio => radio.checked = false);
             bagSection.style.display = 'none';
-        } else {
+            if (shallowSelectionDiv) {
+                shallowSelectionDiv.style.display = 'none';
+            }
+            document.querySelectorAll('input[name="maida_storage_method"]').forEach(radio => radio.checked = false);
+        } else if (productType) {
             maidaOptions.style.display = 'none';
             bagSection.style.display = 'block';
+        } else {
+            maidaOptions.style.display = 'none';
+            bagSection.style.display = 'none';
         }
     } else {
         // From shallow - always bags

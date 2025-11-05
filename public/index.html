@@ -497,40 +497,68 @@
                                 <option value="BRAN">BRAN</option>
                             </select>
                         </div>
-                        <div class="form-group" id="shallow-selection" style="display: none;">
-                            <label>Select Shallow (MAIDA only):</label>
-                            <select id="packaging_shallow_id">
-                                <option value="">Select shallow...</option>
-                            </select>
+                    </div>
+
+                    <div id="maida-storage-options" style="display: none;">
+                        <h4>MAIDA Storage Method</h4>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="maida_storage_method" value="shallow" onchange="toggleMaidaStorageMethod()">
+                                Store in Shallow (Loose, No Bags)
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="maida_storage_method" value="bags" onchange="toggleMaidaStorageMethod()">
+                                Package in Bags (Direct to Godown)
+                            </label>
+                        </div>
+
+                        <div id="shallow-selection" style="display: none;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Select Shallow:</label>
+                                    <select id="packaging_shallow_id">
+                                        <option value="">Select shallow...</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Quantity (tons):</label>
+                                    <input type="number" id="shallow_quantity" step="0.01" placeholder="e.g., 8.00">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Bag Size (kg):</label>
-                            <select id="packaging_bag_size" onchange="calculateTotalWeight()">
-                                <option value="">Select bag size...</option>
-                                <option value="25">25 kg</option>
-                                <option value="30">30 kg</option>
-                                <option value="50">50 kg</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Number of Bags:</label>
-                            <input type="number" id="packaging_num_bags" placeholder="e.g., 100" onchange="calculateTotalWeight()">
-                        </div>
-                        <div class="form-group">
-                            <label>Total Weight:</label>
-                            <input type="text" id="packaging_total_weight" readonly>
-                        </div>
-                    </div>
+                    <div id="bag-packaging-section" style="display: none;">
 
                     <div class="form-row">
-                        <div class="form-group">
-                            <label>Destination Godown:</label>
-                            <select id="packaging_godown_id">
-                                <option value="">Select godown...</option>
-                            </select>
+                            <div class="form-group">
+                                <label>Bag Size (kg):</label>
+                                <select id="packaging_bag_size" onchange="calculateTotalWeight()">
+                                    <option value="">Select bag size...</option>
+                                    <option value="25">25 kg</option>
+                                    <option value="30">30 kg</option>
+                                    <option value="50">50 kg</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Number of Bags:</label>
+                                <input type="number" id="packaging_num_bags" placeholder="e.g., 100" onchange="calculateTotalWeight()">
+                            </div>
+                            <div class="form-group">
+                                <label>Total Weight:</label>
+                                <input type="text" id="packaging_total_weight" readonly>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Destination Godown:</label>
+                                <select id="packaging_godown_id">
+                                    <option value="">Select godown...</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
 
