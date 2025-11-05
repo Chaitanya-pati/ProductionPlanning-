@@ -888,7 +888,7 @@ async function showBlendedPlanInfo(planId) {
             if (plan) {
                 const infoEl = document.getElementById('blended-plan-info');
                 infoEl.innerHTML = `
-                    <h4>Plan: ${plan.plan_name}</h4>
+                    <h4>Plan: ${plan.description || 'Production Plan'}</h4>
                     <p><strong>Order Number:</strong> ${order.order_number}</p>
                     <p><strong>Product:</strong> ${order.product_type}</p>
                     <p><strong>Total Quantity:</strong> ${order.quantity} tons</p>
@@ -973,7 +973,7 @@ async function showBlendedPlanDetails(planId) {
                 const detailsEl = document.getElementById('blended-plan-details');
                 detailsEl.innerHTML = `
                     <div class="plan-preview">
-                        <h4>Plan: ${plan.plan_name}</h4>
+                        <h4>Plan: ${plan.description || 'Production Plan'}</h4>
                         <div class="plan-section">
                             <h5>Source Blend:</h5>
                             ${plan.source_blend.map(s => `
@@ -1469,7 +1469,7 @@ async function loadTimeline(orderId) {
         // Stage 2: Production Plan
         if (timeline.plan) {
             stagesHTML += buildStage(stageNumber++, 'Production Plan Created', 'completed', timeline.plan.created_at, null, {
-                'Plan Name': timeline.plan.plan_name,
+                'Plan Description': timeline.plan.description || 'Production Plan',
                 'Source Bins': `${timeline.plan.source_blend.length} bins blended`,
                 'Destination Bins': `${timeline.plan.destination_distribution.length} bins`
             }, buildPlanDetails(timeline.plan));
@@ -1614,6 +1614,7 @@ function buildStage(number, title, status, startTime, endTime, details, subDetai
 function buildPlanDetails(plan) {
     return `
         <div class="timeline-sub-details">
+            <h5>Plan Description: ${plan.description || 'Production Plan'}</h5>
             <h5>Source Blend Configuration:</h5>
             ${plan.source_blend.map(s => `
                 <div class="timeline-sub-item">• ${s.bin_name}: ${s.percentage}% (${s.quantity.toFixed(2)} tons)</div>
