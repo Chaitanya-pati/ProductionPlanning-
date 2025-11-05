@@ -37,6 +37,12 @@ function showTab(tabName, clickedElement) {
         loadBins();
     } else if (tabName === 'timeline') {
         loadOrdersForTimeline();
+    } else if (tabName === 'godowns-master') {
+        loadGodowns();
+    } else if (tabName === 'shallows-master') {
+        loadShallows();
+    } else if (tabName === 'packaging') {
+        initPackaging();
     }
 }
 
@@ -1794,6 +1800,424 @@ async function loadProductionSummary() {
         }
     } catch (error) {
         console.error('Error loading summary:', error);
+    }
+}
+
+// FINISHED GOODS GODOWN MANAGEMENT
+async function loadGodowns() {
+    try {
+        const response = await fetch(`${API_URL}/api/godowns`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const list = document.getElementById('godowns-list');
+            if (result.data.length === 0) {
+                list.innerHTML = '<p>No godowns found. Add one above.</p>';
+                return;
+            }
+            
+            list.innerHTML = '<table class="data-table"><thead><tr><th>Godown Name</th><th>Code</th><th>Capacity</th><th>Current Qty</th><th>Available</th><th>Location</th></tr></thead><tbody>' +
+                result.data.map(g => `
+                    <tr>
+                        <td>${g.godown_name}</td>
+                        <td>${g.godown_code}</td>
+                        <td>${g.capacity} tons</td>
+                        <td>${g.current_quantity} tons</td>
+                        <td>${(g.capacity - g.current_quantity).toFixed(2)} tons</td>
+                        <td>${g.location || '-'}</td>
+                    </tr>
+                `).join('') + '</tbody></table>';
+        }
+    } catch (error) {
+        console.error('Error loading godowns:', error);
+    }
+}
+
+document.getElementById('godown-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        godown_name: document.getElementById('godown_name').value,
+        godown_code: document.getElementById('godown_code').value,
+        capacity: parseFloat(document.getElementById('godown_capacity').value),
+        location: document.getElementById('godown_location').value
+    };
+    
+    try {
+        const response = await fetch(`${API_URL}/api/godowns`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        const messageEl = document.getElementById('godown-message');
+        
+        if (result.success) {
+            messageEl.className = 'message success';
+            messageEl.textContent = 'Godown added successfully!';
+            this.reset();
+            loadGodowns();
+        } else {
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
+        }
+    } catch (error) {
+        const messageEl = document.getElementById('godown-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
+    }
+});
+
+// MAIDA SHALLOWS MANAGEMENT
+async function loadShallows() {
+    try {
+        const response = await fetch(`${API_URL}/api/shallows`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const list = document.getElementById('shallows-list');
+            if (result.data.length === 0) {
+                list.innerHTML = '<p>No shallows found. Add one above.</p>';
+                return;
+            }
+            
+            list.innerHTML = '<table class="data-table"><thead><tr><th>Shallow Name</th><th>Code</th><th>Capacity</th><th>Current Qty</th><th>Available</th></tr></thead><tbody>' +
+                result.data.map(s => `
+                    <tr>
+                        <td>${s.shallow_name}</td>
+                        <td>${s.shallow_code}</td>
+                        <td>${s.capacity} tons</td>
+                        <td>${s.current_quantity} tons</td>
+                        <td>${(s.capacity - s.current_quantity).toFixed(2)} tons</td>
+                    </tr>
+                `).join('') + '</tbody></table>';
+            
+            // Update transfer shallow dropdown
+            const transferSelect = document.getElementById('transfer_shallow_id');
+            if (transferSelect) {
+                transferSelect.innerHTML = '<option value="">Select shallow...</option>' +
+                    result.data.map(s => `<option value="${s.id}">${s.shallow_name} (${s.current_quantity}/${s.capacity} tons)</option>`).join('');
+            }
+            
+            // Update packaging shallow dropdown
+            const packagingSelect = document.getElementById('packaging_shallow_id');
+            if (packagingSelect) {
+                packagingSelect.innerHTML = '<option value="">Select shallow...</option>' +
+                    result.data.map(s => `<option value="${s.id}">${s.shallow_name} (${s.current_quantity} tons available)</option>`).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error loading shallows:', error);
+    }
+}
+
+document.getElementById('shallow-form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = {
+        shallow_name: document.getElementById('shallow_name').value,
+        shallow_code: document.getElementById('shallow_code').value,
+        capacity: parseFloat(document.getElementById('shallow_capacity').value)
+    };
+    
+    try {
+        const response = await fetch(`${API_URL}/api/shallows`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
+        
+        const result = await response.json();
+        const messageEl = document.getElementById('shallow-message');
+        
+        if (result.success) {
+            messageEl.className = 'message success';
+            messageEl.textContent = 'Shallow added successfully!';
+            this.reset();
+            loadShallows();
+        } else {
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
+        }
+    } catch (error) {
+        const messageEl = document.getElementById('shallow-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
+    }
+});
+
+async function transferToShallow() {
+    const shallowId = document.getElementById('transfer_shallow_id').value;
+    const quantity = parseFloat(document.getElementById('transfer_shallow_quantity').value);
+    const messageEl = document.getElementById('shallow-transfer-message');
+    
+    if (!shallowId || !quantity || quantity <= 0) {
+        messageEl.className = 'message error';
+        messageEl.textContent = 'Please select a shallow and enter a valid quantity';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/shallows/${shallowId}/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantity })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            messageEl.className = 'message success';
+            messageEl.textContent = `Successfully transferred ${quantity} tons to shallow. New quantity: ${result.data.new_quantity} tons`;
+            document.getElementById('transfer_shallow_quantity').value = '';
+            loadShallows();
+        } else {
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
+        }
+    } catch (error) {
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
+    }
+}
+
+// PACKAGING MODULE
+async function initPackaging() {
+    try {
+        // Load orders for packaging
+        const ordersResponse = await fetch(`${API_URL}/api/orders`);
+        const ordersResult = await ordersResponse.json();
+        
+        const packagingSelect = document.getElementById('packaging_order_id');
+        if (ordersResult.success && ordersResult.data.length > 0) {
+            const completedOrders = ordersResult.data.filter(o => 
+                o.production_stage === 'GRINDING_COMPLETED' || 
+                o.production_stage === 'PACKAGING_COMPLETED'
+            );
+            
+            if (completedOrders.length > 0) {
+                packagingSelect.innerHTML = '<option value="">Select order...</option>' +
+                    completedOrders.map(order => 
+                        `<option value="${order.id}" data-product="${order.product_type}">${order.order_number} - ${order.product_type}</option>`
+                    ).join('');
+            } else {
+                packagingSelect.innerHTML = '<option value="">No completed orders available</option>';
+            }
+        }
+        
+        // Load godowns
+        const godownsResponse = await fetch(`${API_URL}/api/godowns`);
+        const godownsResult = await godownsResponse.json();
+        
+        const godownSelect = document.getElementById('packaging_godown_id');
+        if (godownsResult.success && godownsResult.data.length > 0) {
+            godownSelect.innerHTML = '<option value="">Select godown...</option>' +
+                godownsResult.data.map(g => 
+                    `<option value="${g.id}">${g.godown_name} (${(g.capacity - g.current_quantity).toFixed(2)} tons available)</option>`
+                ).join('');
+        }
+        
+        // Load shallows
+        loadShallows();
+    } catch (error) {
+        console.error('Error initializing packaging:', error);
+    }
+}
+
+document.getElementById('packaging_order_id')?.addEventListener('change', async function() {
+    const orderId = this.value;
+    const detailsDiv = document.getElementById('packaging-details');
+    
+    if (!orderId) {
+        detailsDiv.style.display = 'none';
+        return;
+    }
+    
+    try {
+        // Get order details
+        const orderResponse = await fetch(`${API_URL}/api/orders/${orderId}`);
+        const orderResult = await orderResponse.json();
+        
+        if (!orderResult.success) {
+            alert('Error loading order');
+            return;
+        }
+        
+        const order = orderResult.data;
+        
+        // Get grinding job for this order
+        const grindingResponse = await fetch(`${API_URL}/api/timeline/${orderId}`);
+        const grindingResult = await grindingResponse.json();
+        
+        if (!grindingResult.success || !grindingResult.data.grinding) {
+            alert('No grinding data found for this order');
+            return;
+        }
+        
+        const grinding = grindingResult.data.grinding;
+        
+        document.getElementById('packaging-order-info').innerHTML = `
+            <h4>Order Information</h4>
+            <p><strong>Order Number:</strong> ${order.order_number}</p>
+            <p><strong>Product:</strong> ${order.product_type}</p>
+            <p><strong>Total Quantity:</strong> ${order.quantity} tons</p>
+            <p><strong>Status:</strong> <span class="status-badge">${order.production_stage}</span></p>
+        `;
+        
+        if (grinding.summary) {
+            document.getElementById('grinding-output-summary').innerHTML = `
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <h5>MAIDA</h5>
+                        <div class="value">${grinding.summary.total_maida.toFixed(2)} tons</div>
+                    </div>
+                    <div class="summary-card">
+                        <h5>SUJI</h5>
+                        <div class="value">${grinding.summary.total_suji.toFixed(2)} tons</div>
+                    </div>
+                    <div class="summary-card">
+                        <h5>CHAKKI ATA</h5>
+                        <div class="value">${grinding.summary.total_chakki.toFixed(2)} tons</div>
+                    </div>
+                    <div class="summary-card">
+                        <h5>TANDOORI</h5>
+                        <div class="value">${grinding.summary.total_tandoori.toFixed(2)} tons</div>
+                    </div>
+                    <div class="summary-card">
+                        <h5>BRAN</h5>
+                        <div class="value">${grinding.summary.total_bran.toFixed(2)} tons</div>
+                    </div>
+                    <div class="summary-card grand-total">
+                        <h5>TOTAL</h5>
+                        <div class="value">${grinding.summary.grand_total.toFixed(2)} tons</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Load existing packaging records
+        const packagingResponse = await fetch(`${API_URL}/api/packaging/${orderId}`);
+        const packagingResult = await packagingResponse.json();
+        
+        if (packagingResult.success && packagingResult.data.length > 0) {
+            document.getElementById('packaging-records').innerHTML = 
+                '<table class="data-table"><thead><tr><th>Product</th><th>Shallow</th><th>Bag Size</th><th>Bags</th><th>Total Weight</th><th>Godown</th><th>Status</th></tr></thead><tbody>' +
+                packagingResult.data.map(r => `
+                    <tr>
+                        <td>${r.product_type}</td>
+                        <td>${r.shallow_name || '-'}</td>
+                        <td>${r.bag_size_kg} kg</td>
+                        <td>${r.number_of_bags}</td>
+                        <td>${r.total_kg_packed} tons</td>
+                        <td>${r.godown_name}</td>
+                        <td><span class="status-badge">${r.status}</span></td>
+                    </tr>
+                `).join('') + '</tbody></table>';
+        } else {
+            document.getElementById('packaging-records').innerHTML = '<p>No packaging records yet for this order.</p>';
+        }
+        
+        // Store grinding job ID for packaging submission
+        document.getElementById('packaging-details').dataset.grindingJobId = grinding.id;
+        
+        detailsDiv.style.display = 'block';
+    } catch (error) {
+        console.error('Error loading packaging details:', error);
+        alert('Error loading order details');
+    }
+});
+
+function toggleShallowSelection() {
+    const productType = document.getElementById('packaging_product_type').value;
+    const shallowDiv = document.getElementById('shallow-selection');
+    
+    if (productType === 'MAIDA') {
+        shallowDiv.style.display = 'block';
+    } else {
+        shallowDiv.style.display = 'none';
+    }
+}
+
+function calculateTotalWeight() {
+    const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
+    const numBags = parseInt(document.getElementById('packaging_num_bags').value);
+    
+    if (bagSize && numBags) {
+        const totalKg = bagSize * numBags;
+        const totalTons = totalKg / 1000;
+        document.getElementById('packaging_total_weight').value = `${totalTons.toFixed(2)} tons (${totalKg} kg)`;
+    } else {
+        document.getElementById('packaging_total_weight').value = '';
+    }
+}
+
+async function submitPackaging() {
+    const orderId = document.getElementById('packaging_order_id').value;
+    const grindingJobId = document.getElementById('packaging-details').dataset.grindingJobId;
+    const productType = document.getElementById('packaging_product_type').value;
+    const shallowId = document.getElementById('packaging_shallow_id').value;
+    const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
+    const numBags = parseInt(document.getElementById('packaging_num_bags').value);
+    const godownId = document.getElementById('packaging_godown_id').value;
+    const messageEl = document.getElementById('packaging-message');
+    
+    if (!orderId || !productType || !bagSize || !numBags || !godownId) {
+        messageEl.className = 'message error';
+        messageEl.textContent = 'Please fill all required fields';
+        return;
+    }
+    
+    if (productType === 'MAIDA' && !shallowId) {
+        messageEl.className = 'message error';
+        messageEl.textContent = 'Please select a shallow for MAIDA packaging';
+        return;
+    }
+    
+    const packagingData = {
+        order_id: parseInt(orderId),
+        grinding_job_id: parseInt(grindingJobId),
+        product_type: productType,
+        shallow_id: shallowId ? parseInt(shallowId) : null,
+        bag_size_kg: bagSize,
+        number_of_bags: numBags,
+        godown_id: parseInt(godownId)
+    };
+    
+    try {
+        const response = await fetch(`${API_URL}/api/packaging`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(packagingData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            messageEl.className = 'message success';
+            messageEl.textContent = `Successfully packaged ${result.data.total_kg_packed} tons of ${productType} in ${numBags} bags!`;
+            
+            // Reset form
+            document.getElementById('packaging_product_type').value = '';
+            document.getElementById('packaging_shallow_id').value = '';
+            document.getElementById('packaging_num_bags').value = '';
+            document.getElementById('packaging_total_weight').value = '';
+            document.getElementById('shallow-selection').style.display = 'none';
+            
+            // Reload packaging records
+            setTimeout(() => {
+                document.getElementById('packaging_order_id').dispatchEvent(new Event('change'));
+            }, 500);
+            
+            loadShallows();
+            loadGodowns();
+        } else {
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
+        }
+    } catch (error) {
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
     }
 }
 

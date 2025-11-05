@@ -28,12 +28,15 @@
                     <button class="tab-btn" onclick="showTab('transfer-blended', this)">🔄 Transfer PRE→24</button>
                     <button class="tab-btn" onclick="showTab('transfer-sequential', this)">🔄 Transfer 24→12</button>
                     <button class="tab-btn" onclick="showTab('grinding', this)">⚙️ Grinding</button>
+                    <button class="tab-btn" onclick="showTab('packaging', this)">📦 Packaging</button>
                 </div>
                 
                 <div class="nav-section">
                     <div class="nav-section-title">Master Data</div>
                     <button class="tab-btn" onclick="showTab('products-master', this)">📦 Products Master</button>
                     <button class="tab-btn" onclick="showTab('bins-master', this)">🗄️ Bins Master</button>
+                    <button class="tab-btn" onclick="showTab('godowns-master', this)">🏪 FG Godowns</button>
+                    <button class="tab-btn" onclick="showTab('shallows-master', this)">🥘 Maida Shallows</button>
                 </div>
             </nav>
             
@@ -290,6 +293,174 @@
                 <h3>All Bins</h3>
                 <div id="bins-list"></div>
             </div>
+        </div>
+
+        <div id="godowns-master-tab" class="tab-content">
+            <h2>Finished Goods Godown Master</h2>
+            
+            <div class="master-section">
+                <h3>Add New Godown</h3>
+                <form id="godown-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Godown Name:</label>
+                            <input type="text" id="godown_name" placeholder="e.g., FG Godown 4" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Godown Code:</label>
+                            <input type="text" id="godown_code" placeholder="e.g., FGG-04" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Capacity (Tons):</label>
+                            <input type="number" id="godown_capacity" step="0.01" placeholder="e.g., 5000" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Location:</label>
+                            <input type="text" id="godown_location" placeholder="e.g., Warehouse D">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary">Add Godown</button>
+                </form>
+                <div id="godown-message" class="message"></div>
+            </div>
+
+            <div class="master-section">
+                <h3>All Finished Goods Godowns</h3>
+                <div id="godowns-list"></div>
+            </div>
+        </div>
+
+        <div id="shallows-master-tab" class="tab-content">
+            <h2>Maida Shallows Master</h2>
+            
+            <div class="master-section">
+                <h3>Add New Shallow</h3>
+                <form id="shallow-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Shallow Name:</label>
+                            <input type="text" id="shallow_name" placeholder="e.g., Shallow 4" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Shallow Code:</label>
+                            <input type="text" id="shallow_code" placeholder="e.g., SH-04" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Capacity (Tons):</label>
+                            <input type="number" id="shallow_capacity" step="0.01" placeholder="e.g., 200" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary">Add Shallow</button>
+                </form>
+                <div id="shallow-message" class="message"></div>
+            </div>
+
+            <div class="master-section">
+                <h3>All Maida Shallows</h3>
+                <div id="shallows-list"></div>
+            </div>
+
+            <div class="master-section">
+                <h3>Transfer MAIDA to Shallow</h3>
+                <p class="hint">Manually add MAIDA quantity from grinding to a shallow</p>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Select Shallow:</label>
+                        <select id="transfer_shallow_id">
+                            <option value="">Select shallow...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Quantity (Tons):</label>
+                        <input type="number" id="transfer_shallow_quantity" step="0.01" placeholder="e.g., 50">
+                    </div>
+                    <button onclick="transferToShallow()" class="btn-primary">Transfer to Shallow</button>
+                </div>
+                <div id="shallow-transfer-message" class="message"></div>
+            </div>
+        </div>
+
+        <div id="packaging-tab" class="tab-content">
+            <h2>Stage 8: Packaging & Storage</h2>
+            <p class="hint">Pack ground products into bags and store in finished goods godowns</p>
+            
+            <div class="form-group">
+                <label>Select Order:</label>
+                <select id="packaging_order_id">
+                    <option value="">Select order...</option>
+                </select>
+            </div>
+
+            <div id="packaging-details" style="display: none;">
+                <div id="packaging-order-info" class="order-details"></div>
+
+                <div class="section">
+                    <h3>Grinding Output Summary</h3>
+                    <div id="grinding-output-summary"></div>
+                </div>
+
+                <div class="section">
+                    <h3>Package Product</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Product Type:</label>
+                            <select id="packaging_product_type" onchange="toggleShallowSelection()">
+                                <option value="">Select product...</option>
+                                <option value="MAIDA">MAIDA</option>
+                                <option value="SUJI">SUJI</option>
+                                <option value="CHAKKI">Chakki Ata</option>
+                                <option value="TANDOORI">Tandoori</option>
+                                <option value="BRAN">BRAN</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="shallow-selection" style="display: none;">
+                            <label>Select Shallow (MAIDA only):</label>
+                            <select id="packaging_shallow_id">
+                                <option value="">Select shallow...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Bag Size (kg):</label>
+                            <select id="packaging_bag_size">
+                                <option value="25">25 kg</option>
+                                <option value="30">30 kg</option>
+                                <option value="50">50 kg</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Number of Bags:</label>
+                            <input type="number" id="packaging_num_bags" placeholder="e.g., 1000" min="1" oninput="calculateTotalWeight()">
+                        </div>
+                        <div class="form-group">
+                            <label>Total Weight:</label>
+                            <input type="text" id="packaging_total_weight" readonly placeholder="Auto-calculated">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Destination Godown:</label>
+                        <select id="packaging_godown_id">
+                            <option value="">Select godown...</option>
+                        </select>
+                    </div>
+
+                    <button onclick="submitPackaging()" class="btn-primary">Package & Store</button>
+                </div>
+
+                <div class="section">
+                    <h3>Packaging Records</h3>
+                    <div id="packaging-records"></div>
+                </div>
+            </div>
+
+            <div id="packaging-message" class="message"></div>
         </div>
 
         <div id="timeline-tab" class="tab-content">

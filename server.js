@@ -967,6 +967,299 @@ app.get('/api/grinding/summary/:grindingJobId', (req, res) => {
   }
 });
 
+// FINISHED GOODS GODOWN MANAGEMENT
+app.get('/api/godowns', (req, res) => {
+  try {
+    const godowns = db.prepare('SELECT * FROM finished_goods_godowns ORDER BY id').all();
+    res.json({ success: true, data: godowns });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/godowns', (req, res) => {
+  try {
+    const { godown_name, godown_code, capacity, location } = req.body;
+    
+    if (!godown_name || !godown_code || !capacity) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO finished_goods_godowns (godown_name, godown_code, capacity, location)
+      VALUES (?, ?, ?, ?)
+    `);
+    
+    const result = stmt.run(godown_name, godown_code, capacity, location || '');
+    
+    res.json({ 
+      success: true, 
+      data: { id: result.lastInsertRowid, godown_name, godown_code, capacity, location }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/godowns/:id', (req, res) => {
+  try {
+    const { godown_name, godown_code, capacity, location } = req.body;
+    
+    if (!godown_name || !godown_code || !capacity) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const stmt = db.prepare(`
+      UPDATE finished_goods_godowns 
+      SET godown_name = ?, godown_code = ?, capacity = ?, location = ?
+      WHERE id = ?
+    `);
+    
+    stmt.run(godown_name, godown_code, capacity, location || '', req.params.id);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// MAIDA SHALLOWS MANAGEMENT
+app.get('/api/shallows', (req, res) => {
+  try {
+    const shallows = db.prepare('SELECT * FROM maida_shallows ORDER BY id').all();
+    res.json({ success: true, data: shallows });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/shallows', (req, res) => {
+  try {
+    const { shallow_name, shallow_code, capacity } = req.body;
+    
+    if (!shallow_name || !shallow_code || !capacity) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const stmt = db.prepare(`
+      INSERT INTO maida_shallows (shallow_name, shallow_code, capacity)
+      VALUES (?, ?, ?)
+    `);
+    
+    const result = stmt.run(shallow_name, shallow_code, capacity);
+    
+    res.json({ 
+      success: true, 
+      data: { id: result.lastInsertRowid, shallow_name, shallow_code, capacity }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/shallows/:id', (req, res) => {
+  try {
+    const { shallow_name, shallow_code, capacity } = req.body;
+    
+    if (!shallow_name || !shallow_code || !capacity) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const stmt = db.prepare(`
+      UPDATE maida_shallows 
+      SET shallow_name = ?, shallow_code = ?, capacity = ?
+      WHERE id = ?
+    `);
+    
+    stmt.run(shallow_name, shallow_code, capacity, req.params.id);
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// PACKAGING OPERATIONS
+app.post('/api/packaging', (req, res) => {
+  try {
+    const { 
+      order_id, 
+      grinding_job_id, 
+      product_type, 
+      shallow_id, 
+      bag_size_kg, 
+      number_of_bags, 
+      godown_id 
+    } = req.body;
+    
+    if (!order_id || !grinding_job_id || !product_type || !bag_size_kg || !number_of_bags || !godown_id) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const total_kg_packed = bag_size_kg * number_of_bags;
+
+    // If product is MAIDA, check and deduct from shallow
+    if (product_type.toUpperCase() === 'MAIDA') {
+      if (!shallow_id) {
+        return res.status(400).json({ success: false, error: 'Shallow selection required for MAIDA' });
+      }
+
+      const shallow = db.prepare('SELECT * FROM maida_shallows WHERE id = ?').get(shallow_id);
+      if (!shallow) {
+        return res.status(404).json({ success: false, error: 'Shallow not found' });
+      }
+
+      if (shallow.current_quantity < total_kg_packed) {
+        return res.status(400).json({ 
+          success: false, 
+          error: `Insufficient quantity in shallow. Available: ${shallow.current_quantity} tons, Required: ${total_kg_packed} tons`
+        });
+      }
+
+      // Deduct from shallow
+      db.prepare('UPDATE maida_shallows SET current_quantity = current_quantity - ? WHERE id = ?')
+        .run(total_kg_packed, shallow_id);
+      
+      // Record storage transfer
+      db.prepare(`
+        INSERT INTO storage_transfers (source_type, source_id, destination_type, destination_id, product_type, quantity)
+        VALUES ('SHALLOW', ?, 'GODOWN', ?, ?, ?)
+      `).run(shallow_id, godown_id, product_type, total_kg_packed);
+    } else {
+      // For non-MAIDA products, record transfer from grinding
+      db.prepare(`
+        INSERT INTO storage_transfers (source_type, source_id, destination_type, destination_id, product_type, quantity)
+        VALUES ('GRINDING', ?, 'GODOWN', ?, ?, ?)
+      `).run(grinding_job_id, godown_id, product_type, total_kg_packed);
+    }
+
+    // Add to godown
+    db.prepare('UPDATE finished_goods_godowns SET current_quantity = current_quantity + ? WHERE id = ?')
+      .run(total_kg_packed, godown_id);
+
+    // Create packaging record
+    const packagingStmt = db.prepare(`
+      INSERT INTO packaging_records 
+      (grinding_job_id, order_id, product_type, shallow_id, bag_size_kg, number_of_bags, total_kg_packed, godown_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const result = packagingStmt.run(
+      grinding_job_id, 
+      order_id, 
+      product_type, 
+      shallow_id || null, 
+      bag_size_kg, 
+      number_of_bags, 
+      total_kg_packed, 
+      godown_id
+    );
+
+    // Update order status
+    db.prepare("UPDATE orders SET production_stage = 'PACKAGING_COMPLETED' WHERE id = ?")
+      .run(order_id);
+
+    res.json({ 
+      success: true, 
+      data: { 
+        packaging_id: result.lastInsertRowid, 
+        total_kg_packed,
+        status: 'PACKED'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/packaging/:orderId', (req, res) => {
+  try {
+    const records = db.prepare(`
+      SELECT 
+        pr.*,
+        ms.shallow_name,
+        fg.godown_name
+      FROM packaging_records pr
+      LEFT JOIN maida_shallows ms ON pr.shallow_id = ms.id
+      JOIN finished_goods_godowns fg ON pr.godown_id = fg.id
+      WHERE pr.order_id = ?
+      ORDER BY pr.packed_at DESC
+    `).all(req.params.orderId);
+    
+    res.json({ success: true, data: records });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get grinding summary for packaging
+app.get('/api/grinding/:grindingJobId/summary', (req, res) => {
+  try {
+    const { grindingJobId } = req.params;
+    
+    const grindingJob = db.prepare('SELECT * FROM grinding_jobs WHERE id = ?').get(grindingJobId);
+    if (!grindingJob) {
+      return res.status(404).json({ success: false, error: 'Grinding job not found' });
+    }
+    
+    const reports = db.prepare(`
+      SELECT * FROM hourly_reports 
+      WHERE grinding_job_id = ? AND status = 'SUBMITTED'
+      ORDER BY report_number
+    `).all(grindingJobId);
+    
+    if (reports.length === 0) {
+      return res.json({ success: false, error: 'No grinding reports found' });
+    }
+    
+    const summary = {
+      maida: reports.reduce((sum, r) => sum + r.maida_tons, 0),
+      suji: reports.reduce((sum, r) => sum + r.suji_tons, 0),
+      chakki: reports.reduce((sum, r) => sum + r.chakki_ata_tons, 0),
+      tandoori: reports.reduce((sum, r) => sum + r.tandoori_tons, 0),
+      bran: reports.reduce((sum, r) => sum + r.bran_tons, 0),
+      total: reports.reduce((sum, r) => sum + r.grand_total_tons, 0)
+    };
+    
+    res.json({ success: true, data: { grinding_job: grindingJob, summary } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Update shallow quantity (for manual transfers of MAIDA from grinding to shallow)
+app.post('/api/shallows/:id/add', (req, res) => {
+  try {
+    const { quantity } = req.body;
+    
+    if (!quantity || quantity <= 0) {
+      return res.status(400).json({ success: false, error: 'Invalid quantity' });
+    }
+
+    const shallow = db.prepare('SELECT * FROM maida_shallows WHERE id = ?').get(req.params.id);
+    if (!shallow) {
+      return res.status(404).json({ success: false, error: 'Shallow not found' });
+    }
+
+    if (shallow.current_quantity + quantity > shallow.capacity) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Exceeds capacity. Available space: ${shallow.capacity - shallow.current_quantity} tons`
+      });
+    }
+
+    db.prepare('UPDATE maida_shallows SET current_quantity = current_quantity + ? WHERE id = ?')
+      .run(quantity, req.params.id);
+    
+    res.json({ 
+      success: true, 
+      data: { new_quantity: shallow.current_quantity + quantity }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });

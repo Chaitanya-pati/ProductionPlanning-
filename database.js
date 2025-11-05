@@ -176,6 +176,55 @@ db.exec(`
     submitted_at DATETIME,
     FOREIGN KEY (grinding_job_id) REFERENCES grinding_jobs(id)
   );
+
+  CREATE TABLE IF NOT EXISTS finished_goods_godowns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    godown_name TEXT UNIQUE NOT NULL,
+    godown_code TEXT UNIQUE NOT NULL,
+    capacity REAL NOT NULL,
+    current_quantity REAL DEFAULT 0,
+    location TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS maida_shallows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    shallow_name TEXT UNIQUE NOT NULL,
+    shallow_code TEXT UNIQUE NOT NULL,
+    capacity REAL NOT NULL,
+    current_quantity REAL DEFAULT 0,
+    product_type TEXT DEFAULT 'MAIDA',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS packaging_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grinding_job_id INTEGER NOT NULL,
+    order_id INTEGER NOT NULL,
+    product_type TEXT NOT NULL,
+    shallow_id INTEGER,
+    bag_size_kg REAL NOT NULL,
+    number_of_bags INTEGER NOT NULL,
+    total_kg_packed REAL NOT NULL,
+    godown_id INTEGER NOT NULL,
+    status TEXT DEFAULT 'PACKED',
+    packed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (grinding_job_id) REFERENCES grinding_jobs(id),
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (shallow_id) REFERENCES maida_shallows(id),
+    FOREIGN KEY (godown_id) REFERENCES finished_goods_godowns(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS storage_transfers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_type TEXT NOT NULL,
+    source_id INTEGER,
+    destination_type TEXT NOT NULL,
+    destination_id INTEGER NOT NULL,
+    product_type TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    transfer_date DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 try {
@@ -213,6 +262,30 @@ if (productCheck.count === 0) {
   initProducts.run('Maida', 'MD');
   initProducts.run('Suji', 'SJ');
   initProducts.run('Atta', 'AT');
+}
+
+const initGodowns = db.prepare(`
+  INSERT OR IGNORE INTO finished_goods_godowns (id, godown_name, godown_code, capacity, location)
+  VALUES (?, ?, ?, ?, ?)
+`);
+
+const godownCheck = db.prepare('SELECT COUNT(*) as count FROM finished_goods_godowns').get();
+if (godownCheck.count === 0) {
+  initGodowns.run(1, 'FG Godown 1', 'FGG-01', 5000, 'Warehouse A');
+  initGodowns.run(2, 'FG Godown 2', 'FGG-02', 5000, 'Warehouse B');
+  initGodowns.run(3, 'FG Godown 3', 'FGG-03', 5000, 'Warehouse C');
+}
+
+const initShallows = db.prepare(`
+  INSERT OR IGNORE INTO maida_shallows (id, shallow_name, shallow_code, capacity)
+  VALUES (?, ?, ?, ?)
+`);
+
+const shallowCheck = db.prepare('SELECT COUNT(*) as count FROM maida_shallows').get();
+if (shallowCheck.count === 0) {
+  initShallows.run(1, 'Shallow 1', 'SH-01', 200);
+  initShallows.run(2, 'Shallow 2', 'SH-02', 200);
+  initShallows.run(3, 'Shallow 3', 'SH-03', 200);
 }
 
 console.log('Database initialized successfully');
