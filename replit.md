@@ -37,6 +37,7 @@ Do not make changes to the file `Y`.
     - Auto-detection of orders from filled 12HR bins.
     - Moisture and water tracking: Capture outgoing moisture content and water added for each 12HR bin when grinding starts.
     - Hourly production reporting: submission of quantities for main products and bran, with automatic percentage calculations and validation (e.g., ~25% bran).
+    - Hourly lab tests: Record moisture levels for each product (Maida, Suji, Chakki Ata, Tandoori, Bran) during grinding with time range tracking. Lab tests are submitted via a dedicated form and stored in the grinding_lab_tests table linked to the grinding job.
     - Production summary: Aggregated totals and average percentages for quality control.
     - Start/Stop grinding functionality with duration tracking.
 - **Packaging Module**: Product-specific packaging and storage management with:
@@ -50,7 +51,7 @@ Do not make changes to the file `Y`.
 - **API Endpoints**: Comprehensive set of RESTful APIs for managing orders, bins, products, plans, transfers, grinding processes, packaging, godowns, and shallows.
 
 ### System Design Choices
-- **Modular Database Schema**: A well-structured SQLite database with 17 tables including orders, production plans, bins, products, transfer jobs, grinding jobs, hourly reports, finished goods godowns, MAIDA shallows, packaging records, and storage transfers. This supports clear data separation and relationships across all stages from production planning through packaging and storage.
+- **Modular Database Schema**: A well-structured SQLite database with 18 tables including orders, production plans, bins, products, transfer jobs, grinding jobs, hourly reports, grinding lab tests, finished goods godowns, MAIDA shallows, packaging records, and storage transfers. This supports clear data separation and relationships across all stages from production planning through packaging and storage.
 - **Dynamic Data Handling**: Frontend dynamically populates forms and displays information based on backend data (e.g., product types, bin availability), ensuring configurability and reducing hardcoding.
 - **Status-Driven Workflow**: Order status progresses systematically through various stages (CREATED, PLANNED, TRANSFER_PRE_TO_24_IN_PROGRESS, TRANSFER_PRE_TO_24_COMPLETED, TRANSFER_24_TO_12_COMPLETED, GRINDING_IN_PROGRESS, GRINDING_COMPLETED, PACKAGING_COMPLETED), providing clear visibility into the production lifecycle.
 - **Automated Calculations & Validations**: The system performs automatic calculations (e.g., blend contributions, percentage calculations in hourly reports) and validations (e.g., sum of percentages/quantities, bran percentage checks) to ensure data integrity and operational accuracy.
