@@ -22,11 +22,36 @@ app.get('/api/orders', (req, res) => {
 
 app.post('/api/orders', (req, res) => {
   try {
-    const { order_number, product_type, quantity } = req.body;
+    const { product_type, quantity } = req.body;
     
-    if (!order_number || !product_type || !quantity) {
+    if (!product_type || !quantity) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
+
+    // Get product initial
+    const product = db.prepare('SELECT initial_name FROM products WHERE product_name = ?').get(product_type);
+    if (!product) {
+      return res.status(400).json({ success: false, error: 'Product not found' });
+    }
+
+    // Generate order number: {INITIAL}-{YEAR}-{SEQUENCE}
+    const currentYear = new Date().getFullYear();
+    const prefix = `${product.initial_name}-${currentYear}-`;
+    
+    // Get the last order number with this prefix
+    const lastOrder = db.prepare(`
+      SELECT order_number FROM orders 
+      WHERE order_number LIKE ? 
+      ORDER BY id DESC LIMIT 1
+    `).get(`${prefix}%`);
+    
+    let sequence = 1;
+    if (lastOrder) {
+      const lastSequence = parseInt(lastOrder.order_number.split('-').pop());
+      sequence = lastSequence + 1;
+    }
+    
+    const order_number = `${prefix}${sequence.toString().padStart(3, '0')}`;
 
     const stmt = db.prepare(`
       INSERT INTO orders (order_number, product_type, quantity, production_stage)

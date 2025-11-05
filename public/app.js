@@ -94,7 +94,6 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const orderData = {
-        order_number: document.getElementById('order_number').value,
         product_type: document.getElementById('product_type').value,
         quantity: parseFloat(document.getElementById('quantity').value)
     };
@@ -111,7 +110,7 @@ document.getElementById('order-form').addEventListener('submit', async (e) => {
         
         if (result.success) {
             messageEl.className = 'message success';
-            messageEl.textContent = `Order ${orderData.order_number} created successfully! Status: CREATED`;
+            messageEl.textContent = `Order ${result.data.order_number} created successfully! Status: CREATED`;
             document.getElementById('order-form').reset();
             setTimeout(() => {
                 showTab('orders', document.querySelector('[onclick*="orders"]'));
