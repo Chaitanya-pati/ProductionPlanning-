@@ -904,20 +904,25 @@ async function load12HRBinsSequence() {
             if (bins12HR.length > 0) {
                 container.innerHTML = `
                     <p class="hint">Select which 12HR bins to use. They will be filled in sequence order.</p>
-                    ${bins12HR.map((bin, index) => {
-                        const available = bin.capacity - bin.current_quantity;
-                        return `
-                            <label class="sequence-bin-item" data-bin-id="${bin.id}">
-                                <input type="checkbox" class="bin-checkbox" value="${bin.id}">
-                                <div class="bin-details">
-                                    <strong>${bin.bin_name}</strong> (Sequence: ${index + 1})
-                                    <div class="bin-capacity-info">
-                                        Current: ${bin.current_quantity}/${bin.capacity} tons • Available: ${available.toFixed(2)} tons
-                                    </div>
+                    <div class="sequential-bins-list">
+                        ${bins12HR.map((bin, index) => {
+                            const available = bin.capacity - bin.current_quantity;
+                            return `
+                                <div class="sequence-bin-item">
+                                    <input type="checkbox" class="bin-checkbox" value="${bin.id}" id="bin_${bin.id}">
+                                    <label for="bin_${bin.id}" class="bin-label">
+                                        <div class="bin-header">
+                                            <strong>${bin.bin_name}</strong>
+                                            <span class="sequence-badge">Sequence: ${index + 1}</span>
+                                        </div>
+                                        <div class="bin-capacity-info">
+                                            Current: ${bin.current_quantity.toFixed(2)}/${bin.capacity} tons • Available: ${available.toFixed(2)} tons
+                                        </div>
+                                    </label>
                                 </div>
-                            </label>
-                        `;
-                    }).join('')}
+                            `;
+                        }).join('')}
+                    </div>
                 `;
             } else {
                 container.innerHTML = '<p>No 12HR bins found. Add them in Bins Master.</p>';
@@ -1037,10 +1042,13 @@ document.getElementById('execute-sequential-transfer').addEventListener('click',
         return;
     }
     
-    const checkedBins = Array.from(document.querySelectorAll('.bin-checkbox:checked'));
-    const destinationSequence = checkedBins.map(cb => parseInt(cb.value));
+    // Get all checkboxes in document order (preserves sequence)
+    const allCheckboxes = Array.from(document.querySelectorAll('.bin-checkbox'));
+    const selectedBins = allCheckboxes
+        .filter(cb => cb.checked)
+        .map(cb => parseInt(cb.value));
     
-    if (destinationSequence.length === 0) {
+    if (selectedBins.length === 0) {
         alert('Please select at least one destination bin');
         return;
     }
@@ -1068,8 +1076,8 @@ document.getElementById('execute-sequential-transfer').addEventListener('click',
     }
     
     const confirmMsg = transferQuantity 
-        ? `Execute sequential transfer of ${transferQuantity} tons to ${destinationSequence.length} selected 12HR bin(s)?`
-        : `Execute sequential transfer of the full quantity to ${destinationSequence.length} selected 12HR bin(s)?`;
+        ? `Execute sequential transfer of ${transferQuantity} tons to ${selectedBins.length} selected 12HR bin(s) in sequence order?`
+        : `Execute sequential transfer of the full quantity to ${selectedBins.length} selected 12HR bin(s) in sequence order?`;
     
     if (!confirm(confirmMsg)) {
         return;
@@ -1079,7 +1087,7 @@ document.getElementById('execute-sequential-transfer').addEventListener('click',
         const requestBody = { 
             order_id: parseInt(orderId), 
             source_bin_id: parseInt(sourceBinId),
-            destination_sequence: destinationSequence
+            destination_sequence: selectedBins
         };
         
         if (transferQuantity) {

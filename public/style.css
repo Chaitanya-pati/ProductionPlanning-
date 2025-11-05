@@ -729,47 +729,68 @@ header p {
     font-size: 0.95em;
 }
 
+.sequential-bins-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
 .sequence-bin-item {
     display: flex;
-    align-items: center;
-    padding: 12px;
-    border: 2px solid #ddd;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: all 0.2s;
+    align-items: flex-start;
+    padding: 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    background: white;
+    transition: all 0.3s ease;
 }
 
 .sequence-bin-item:hover {
     background-color: #f8f9fa;
-    border-color: #4CAF50;
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
 .sequence-bin-item input[type="checkbox"] {
     margin-right: 15px;
-    width: 18px;
-    height: 18px;
+    margin-top: 4px;
+    width: 20px;
+    height: 20px;
     cursor: pointer;
+    accent-color: #667eea;
 }
 
-.sequence-bin-item input[type="checkbox"]:checked {
-    accent-color: #4CAF50;
-}
-
-.bin-details {
+.sequence-bin-item .bin-label {
     flex: 1;
+    cursor: pointer;
+    margin: 0;
 }
 
-.bin-details strong {
-    display: block;
-    font-size: 16px;
-    margin-bottom: 4px;
-    color: #333;
+.bin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.bin-header strong {
+    font-size: 1.05em;
+    color: #2d3748;
+}
+
+.sequence-badge {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
 }
 
 .bin-capacity-info {
-    color: #666;
-    font-size: 14px;
+    color: #718096;
+    font-size: 0.9em;
+    font-weight: 500;
 }
 
 .bin-info {
