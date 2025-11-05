@@ -2035,6 +2035,24 @@ async function initPackaging() {
 // TIMELINE VIEW
 
 async function loadOrdersForTimeline() {
+    try {
+        const response = await fetch(`${API_URL}/api/orders`);
+        const result = await response.json();
+
+        const select = document.getElementById('timeline_order_id');
+
+        if (result.success && result.data.length > 0) {
+            select.innerHTML = '<option value="">Select an order</option>' + 
+                result.data.map(order => 
+                    `<option value="${order.id}">${order.order_number} - ${order.product_type} (${order.production_stage})</option>`
+                ).join('');
+        } else {
+            select.innerHTML = '<option value="">No orders found</option>';
+        }
+    } catch (error) {
+        console.error('Error loading orders:', error);
+    }
+}
 
 function togglePackagingSource() {
     const source = document.querySelector('input[name="packaging_source"]:checked');
