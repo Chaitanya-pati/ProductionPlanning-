@@ -902,13 +902,16 @@ async function load12HRBinsSequence() {
             const container = document.getElementById('sequential-destinations-container');
             
             if (bins12HR.length > 0) {
-                container.innerHTML = bins12HR.map(bin => `
-                    <div class="sequence-bin-item" data-bin-id="${bin.id}">
-                        <input type="checkbox" class="bin-checkbox" value="${bin.id}">
-                        <span class="bin-info">${bin.bin_name} (${bin.identity_number})</span>
-                        <span class="bin-status">Available: ${bin.capacity - bin.current_quantity}/${bin.capacity} tons</span>
-                    </div>
-                `).join('');
+                container.innerHTML = `
+                    <p class="hint">✓ Select bins in the order you want to fill them. The system will fill each bin sequentially to its capacity.</p>
+                    ${bins12HR.map(bin => `
+                        <label class="sequence-bin-item" data-bin-id="${bin.id}">
+                            <input type="checkbox" class="bin-checkbox" value="${bin.id}">
+                            <span class="bin-info">${bin.bin_name} (${bin.identity_number})</span>
+                            <span class="bin-status">Available: ${(bin.capacity - bin.current_quantity).toFixed(2)}/${bin.capacity} tons</span>
+                        </label>
+                    `).join('')}
+                `;
             } else {
                 container.innerHTML = '<p>No 12HR bins found. Add them in Bins Master.</p>';
             }

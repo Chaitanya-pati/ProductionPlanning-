@@ -748,6 +748,11 @@ header p {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
 }
 
+.sequence-bin-item:has(.bin-checkbox:checked) {
+    border-color: #667eea;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+}
+
 .bin-info {
     flex: 1;
     font-weight: 600;
@@ -757,12 +762,15 @@ header p {
 .bin-status {
     color: #718096;
     font-size: 0.9em;
+    white-space: nowrap;
 }
 
 .bin-checkbox {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
     cursor: pointer;
+    accent-color: #667eea;
+    flex-shrink: 0;
 }
 
 .status-transfer_pre_to_24_in_progress {
