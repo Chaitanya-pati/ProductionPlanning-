@@ -46,6 +46,18 @@ A production planning and management system for flour mills. This web applicatio
 10. **destination_bin_transfers** - Tracks individual destination bin transfer states for PRE→24
    - id, order_id, plan_id, destination_bin_id, status, target_quantity, transferred_quantity, started_at, stopped_at, completed_at
 
+11. **grinding_jobs** - Stores grinding job records
+   - id, order_id, grinding_status, grinding_start_time, grinding_end_time, grinding_duration_hours, created_at
+
+12. **grinding_source_bins** - Tracks which 12HR bins are used for grinding
+   - id, grinding_job_id, bin_id, bin_sequence_order, status, created_at
+
+13. **hourly_reports** - Stores hourly production reports during grinding
+   - id, grinding_job_id, report_number, start_time, end_time, status
+   - maida_tons, suji_tons, chakki_ata_tons, tandoori_tons, main_total_tons, bran_tons, grand_total_tons
+   - maida_percent, suji_percent, chakki_ata_percent, tandoori_percent, main_total_percent, bran_percent
+   - submitted_at
+
 ## Features
 
 ### Products Master Configuration
@@ -92,14 +104,51 @@ A production planning and management system for flour mills. This web applicatio
   - TRANSFER_PRE_TO_24_IN_PROGRESS → TRANSFER_PRE_TO_24_COMPLETED (when all bins complete)
 - Plans remain visible in dropdown even when transfer is in progress
 
-### Stage 5-6: Transfer 24→12 (SEQUENTIAL)
+### Stage 5-6: Transfer 24→12 (SEQUENTIAL with START Control)
+- Modern card-based UI design with gradient backgrounds and hover effects
 - Execute sequential transfer from one 24HR bin to multiple 12HR bins
+- Select destination bins via checkboxes with clear capacity information
+- START button initiates the sequential transfer process
 - Fills each 12HR bin to capacity (25 tons) sequentially in selected order
-- User can select which 12HR bins to use via checkboxes
+- Skips unselected bins and fills only selected ones in order
 - Remaining quantity stays in source 24HR bin for later transfer
 - Updates bin quantities automatically
+- Links bins to order_id for grinding process tracking
 - Records transfer details in transfer_jobs and transfer_sequence_details tables
 - Updates order status to "TRANSFER_24_TO_12_COMPLETED"
+
+### Stage 7-8: Grinding Process (CONTINUOUS with Hourly Reporting)
+- Auto-detects orders from filled 12HR bins (TRANSFER_24_TO_12_COMPLETED status)
+- Shows order details with product type and quantity
+- Lists all filled 12HR bins associated with the order
+- **START Grinding**: Initiates continuous grinding process
+  - Creates grinding_job record with order linkage
+  - Updates order status to "GRINDING_IN_PROGRESS"
+  - Enables hourly report submission interface
+- **Hourly Report Submission**:
+  - Sequential report numbering (Report 1, Report 2, etc.)
+  - Time range selection (start and end time)
+  - Production quantities for main products:
+    - Maida (tons)
+    - Suji (tons)
+    - Chakki Ata (tons)
+    - Tandoori (tons)
+  - Bran quantity (tons) - automatically validated to be ~25% of grand total
+  - Automatic calculations:
+    - Main Total = Sum of all main products
+    - Grand Total = Main Total + Bran
+    - Individual percentages for each product
+    - Main Total Percentage (should be ~75%)
+    - Bran Percentage (should be ~25%)
+  - Validation: Warns if bran percentage deviates significantly from 25%
+- **Production Summary**:
+  - Aggregated totals across all hourly reports
+  - Average percentages for quality control
+  - Individual report details with all metrics
+- **STOP Grinding**: Completes the grinding process
+  - Calculates total grinding duration
+  - Updates order status to "GRINDING_COMPLETED"
+  - Disables further report submission
 
 ## API Endpoints
 
@@ -128,6 +177,12 @@ A production planning and management system for flour mills. This web applicatio
 - `POST /api/transfers/sequential` - Execute sequential transfer (24→12)
 - `GET /api/transfers/:orderId` - Get transfer history for an order
 
+### Grinding
+- `POST /api/grinding/start` - Start grinding process for an order
+- `POST /api/grinding/stop` - Stop grinding process and calculate duration
+- `POST /api/grinding/report` - Submit hourly production report with automatic percentage calculations
+- `GET /api/grinding/summary/:grindingJobId` - Get production summary with aggregated totals and averages
+
 ## File Structure
 ```
 /
@@ -135,14 +190,40 @@ A production planning and management system for flour mills. This web applicatio
 ├── database.js         # Database initialization and schema
 ├── package.json        # Project dependencies
 ├── public/
-│   ├── index.html     # Main UI interface with 7 tabs
-│   ├── style.css      # Styling with master configuration styles
-│   └── app.js         # Frontend logic with dynamic data loading
+│   ├── index.html     # Main UI interface with 8 tabs (added Grinding)
+│   ├── style.css      # Styling with master configuration and grinding styles
+│   └── app.js         # Frontend logic with dynamic data loading and grinding module
 └── flour_mill.db      # SQLite database file
 ```
 
+## Recent Changes (November 5, 2025)
+- **LATEST**: Complete Grinding Module with Hourly Production Reporting
+  - Added 3 new database tables: grinding_jobs, grinding_source_bins, hourly_reports
+  - Implemented Grinding tab with auto-detection of orders from filled 12HR bins
+  - Added START/STOP grinding functionality with duration tracking
+  - Created hourly report submission interface with:
+    - Sequential report numbering (Report 1, 2, 3...)
+    - Time range selection (start/end time)
+    - Production quantities for 4 main products (Maida, Suji, Chakki Ata, Tandoori) and Bran
+    - Automatic percentage calculations (75% main products, 25% bran)
+    - Real-time bran percentage validation with warning messages
+  - Built production summary with:
+    - Total production across all hourly reports
+    - Average percentages for quality control
+    - Individual report details display
+  - Backend APIs implemented: /api/grinding/start, /stop, /report, /summary
+  - Order status progression: TRANSFER_24_TO_12_COMPLETED → GRINDING_IN_PROGRESS → GRINDING_COMPLETED
+
+- Enhanced Transfer 24→12 with Modern UI and START Control
+  - Redesigned UI with card-based layout, gradient backgrounds, and hover effects
+  - Added START button to initiate sequential transfer process
+  - Implemented checkbox selection for destination 12HR bins
+  - Added clear capacity information display for each bin
+  - Enhanced sequential filling logic to skip unselected bins
+  - Links bins to order_id during transfer for grinding process tracking
+
 ## Recent Changes (November 4, 2025)
-- **LATEST**: Enhanced Transfer PRE→24 with Individual START/STOP Controls
+- Enhanced Transfer PRE→24 with Individual START/STOP Controls
   - Removed order selection from Transfer PRE→24 tab, now shows plan selection directly
   - Added individual START/STOP buttons for each destination 24HR bin
   - Created destination_bin_transfers table to track individual bin transfer states
@@ -178,4 +259,9 @@ A production planning and management system for flour mills. This web applicatio
 2. **Create Plan** - Configure source blend (PRE_CLEAN bins) and destination distribution (24HR bins) (Status: PLANNED)
 3. **Transfer PRE→24** - Select plan, then individually START/STOP each destination 24HR bin
    - Status: PLANNED → TRANSFER_PRE_TO_24_IN_PROGRESS → TRANSFER_PRE_TO_24_COMPLETED
-4. **Transfer 24→12** - Execute sequential transfer from 24HR to 12HR bins (Status: TRANSFER_24_TO_12_COMPLETED)
+4. **Transfer 24→12** - Select source 24HR bin and destination 12HR bins, click START for sequential transfer
+   - Status: TRANSFER_PRE_TO_24_COMPLETED → TRANSFER_24_TO_12_COMPLETED
+5. **Grinding Process** - Auto-detected from 12HR bins, START grinding, submit hourly reports, view summary, STOP when complete
+   - Status: TRANSFER_24_TO_12_COMPLETED → GRINDING_IN_PROGRESS → GRINDING_COMPLETED
+   - Hourly reports track production quantities with automatic percentage calculations
+   - Production summary provides aggregated totals and averages for quality control
