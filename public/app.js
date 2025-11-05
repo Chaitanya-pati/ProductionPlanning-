@@ -1900,11 +1900,18 @@ async function loadShallows() {
                     result.data.map(s => `<option value="${s.id}">${s.shallow_name} (${s.current_quantity}/${s.capacity} tons)</option>`).join('');
             }
             
-            // Update packaging shallow dropdown
+            // Update packaging shallow dropdown (for storing TO shallow)
             const packagingSelect = document.getElementById('packaging_shallow_id');
             if (packagingSelect) {
                 packagingSelect.innerHTML = '<option value="">Select shallow...</option>' +
                     result.data.map(s => `<option value="${s.id}">${s.shallow_name} (${s.current_quantity} tons available)</option>`).join('');
+            }
+            
+            // Update packaging shallow source dropdown (for packaging FROM shallow)
+            const packagingSourceSelect = document.getElementById('packaging_shallow_source_id');
+            if (packagingSourceSelect) {
+                packagingSourceSelect.innerHTML = '<option value="">Select shallow...</option>' +
+                    result.data.filter(s => s.current_quantity > 0).map(s => `<option value="${s.id}">${s.shallow_name} (${s.current_quantity} tons available)</option>`).join('');
             }
         }
     } catch (error) {
@@ -2025,6 +2032,24 @@ async function initPackaging() {
     }
 }
 
+function togglePackagingSource() {
+    const source = document.querySelector('input[name="packaging_source"]:checked');
+    const orderSection = document.getElementById('packaging-from-order-section');
+    const shallowSection = document.getElementById('packaging-from-shallow-section');
+    
+    if (!source) return;
+    
+    if (source.value === 'order') {
+        orderSection.style.display = 'block';
+        shallowSection.style.display = 'none';
+        document.getElementById('packaging-details').style.display = 'none';
+    } else {
+        orderSection.style.display = 'none';
+        shallowSection.style.display = 'block';
+        document.getElementById('packaging-details').style.display = 'none';
+    }
+}
+
 document.getElementById('packaging_order_id')?.addEventListener('change', async function() {
     const orderId = this.value;
     const detailsDiv = document.getElementById('packaging-details');
@@ -2129,20 +2154,28 @@ document.getElementById('packaging_order_id')?.addEventListener('change', async 
 });
 
 function toggleShallowSelection() {
-    const productType = document.getElementById('packaging_product_type').value;
+    const packagingSource = document.querySelector('input[name="packaging_source"]:checked');
+    if (!packagingSource) return;
+    
+    const productType = packagingSource.value === 'order' 
+        ? document.getElementById('packaging_product_type').value 
+        : 'MAIDA'; // From shallow is always MAIDA
+    
     const maidaOptions = document.getElementById('maida-storage-options');
-    const shallowDiv = document.getElementById('shallow-selection');
     const bagSection = document.getElementById('bag-packaging-section');
     
-    if (productType === 'MAIDA') {
-        maidaOptions.style.display = 'block';
-        // Reset radio buttons and hide both sections initially
-        document.querySelectorAll('input[name="maida_storage_method"]').forEach(radio => radio.checked = false);
-        shallowDiv.style.display = 'none';
-        bagSection.style.display = 'none';
+    if (packagingSource.value === 'order') {
+        if (productType === 'MAIDA') {
+            maidaOptions.style.display = 'block';
+            document.querySelectorAll('input[name="maida_storage_method"]').forEach(radio => radio.checked = false);
+            bagSection.style.display = 'none';
+        } else {
+            maidaOptions.style.display = 'none';
+            bagSection.style.display = 'block';
+        }
     } else {
+        // From shallow - always bags
         maidaOptions.style.display = 'none';
-        shallowDiv.style.display = 'none';
         bagSection.style.display = 'block';
     }
 }
@@ -2186,25 +2219,43 @@ function calculateTotalWeight() {
 }
 
 async function submitPackaging() {
-    const orderId = document.getElementById('packaging_order_id').value;
-    const grindingJobId = document.getElementById('packaging-details').dataset.grindingJobId;
-    const productType = document.getElementById('packaging_product_type').value;
+    const packagingSource = document.querySelector('input[name="packaging_source"]:checked');
     const messageEl = document.getElementById('packaging-message');
     
-    if (!orderId || !productType) {
+    if (!packagingSource) {
         messageEl.className = 'message error';
-        messageEl.textContent = 'Please select an order and product type';
+        messageEl.textContent = 'Please select a packaging source (Order or Shallow)';
         return;
     }
     
+    let orderId, grindingJobId, productType;
+    
+    if (packagingSource.value === 'order') {
+        orderId = document.getElementById('packaging_order_id').value;
+        grindingJobId = document.getElementById('packaging-details').dataset.grindingJobId;
+        productType = document.getElementById('packaging_product_type').value;
+        
+        if (!orderId || !productType) {
+            messageEl.className = 'message error';
+            messageEl.textContent = 'Please select an order and product type';
+            return;
+        }
+    } else {
+        // Packaging from shallow - MAIDA only
+        productType = 'MAIDA';
+        orderId = null;
+        grindingJobId = null;
+    }
+    
     let packagingData = {
-        order_id: parseInt(orderId),
-        grinding_job_id: parseInt(grindingJobId),
-        product_type: productType
+        order_id: orderId ? parseInt(orderId) : null,
+        grinding_job_id: grindingJobId ? parseInt(grindingJobId) : null,
+        product_type: productType,
+        packaging_source: packagingSource.value
     };
     
-    // Check if MAIDA and which storage method
-    if (productType === 'MAIDA') {
+    // Check if MAIDA from order and which storage method
+    if (productType === 'MAIDA' && packagingSource.value === 'order') {
         const storageMethod = document.querySelector('input[name="maida_storage_method"]:checked');
         
         if (!storageMethod) {
@@ -2247,8 +2298,26 @@ async function submitPackaging() {
             packagingData.total_kg_packed = (bagSize * numBags) / 1000; // Convert kg to tons
             packagingData.godown_id = parseInt(godownId);
         }
+    } else if (packagingSource.value === 'shallow') {
+        // Packaging from shallow - MAIDA from shallow to bags to godown
+        const shallowId = document.getElementById('packaging_shallow_source_id').value;
+        const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
+        const numBags = parseInt(document.getElementById('packaging_num_bags').value);
+        const godownId = document.getElementById('packaging_godown_id').value;
+        
+        if (!shallowId || !bagSize || !numBags || !godownId) {
+            messageEl.className = 'message error';
+            messageEl.textContent = 'Please select shallow, bag size, number of bags, and godown';
+            return;
+        }
+        
+        packagingData.shallow_id = parseInt(shallowId);
+        packagingData.bag_size_kg = bagSize;
+        packagingData.number_of_bags = numBags;
+        packagingData.total_kg_packed = (bagSize * numBags) / 1000; // Convert kg to tons
+        packagingData.godown_id = parseInt(godownId);
     } else {
-        // Other products - always use bags
+        // Other products from order - always use bags
         const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
         const numBags = parseInt(document.getElementById('packaging_num_bags').value);
         const godownId = document.getElementById('packaging_godown_id').value;
@@ -2277,30 +2346,43 @@ async function submitPackaging() {
         
         if (result.success) {
             messageEl.className = 'message success';
-            const storedIn = packagingData.shallow_id ? 'shallow' : 'godown';
+            const source = packagingSource.value === 'order' ? 'grinding output' : 'shallow';
+            const destination = packagingData.shallow_id && packagingData.number_of_bags === 0 ? 'shallow' : 'godown';
             const details = packagingData.number_of_bags > 0 
                 ? `in ${packagingData.number_of_bags} bags` 
                 : 'loose';
-            messageEl.textContent = `Successfully stored ${result.data.total_kg_packed} tons of ${productType} ${details} in ${storedIn}!`;
+            messageEl.textContent = `Successfully packaged ${result.data.total_kg_packed} tons of ${productType} from ${source} ${details} to ${destination}!`;
             
             // Reset form
-            document.getElementById('packaging_product_type').value = '';
-            document.getElementById('packaging_shallow_id').value = '';
+            if (document.getElementById('packaging_product_type')) {
+                document.getElementById('packaging_product_type').value = '';
+            }
+            if (document.getElementById('packaging_shallow_id')) {
+                document.getElementById('packaging_shallow_id').value = '';
+            }
+            if (document.getElementById('packaging_shallow_source_id')) {
+                document.getElementById('packaging_shallow_source_id').value = '';
+            }
             document.getElementById('packaging_bag_size').value = '';
             document.getElementById('packaging_num_bags').value = '';
             document.getElementById('packaging_total_weight').value = '';
             if (document.getElementById('shallow_quantity')) {
                 document.getElementById('shallow_quantity').value = '';
             }
-            document.getElementById('maida-storage-options').style.display = 'none';
-            document.getElementById('shallow-selection').style.display = 'none';
-            document.getElementById('bag-packaging-section').style.display = 'none';
+            if (document.getElementById('maida-storage-options')) {
+                document.getElementById('maida-storage-options').style.display = 'none';
+            }
+            if (document.getElementById('bag-packaging-section')) {
+                document.getElementById('bag-packaging-section').style.display = 'none';
+            }
             document.querySelectorAll('input[name="maida_storage_method"]').forEach(radio => radio.checked = false);
             
-            // Reload packaging records
-            setTimeout(() => {
-                document.getElementById('packaging_order_id').dispatchEvent(new Event('change'));
-            }, 500);
+            // Reload packaging records if from order
+            if (packagingSource.value === 'order') {
+                setTimeout(() => {
+                    document.getElementById('packaging_order_id').dispatchEvent(new Event('change'));
+                }, 500);
+            }
             
             loadShallows();
             loadGodowns();

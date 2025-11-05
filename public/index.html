@@ -388,11 +388,38 @@
             <h2>Stage 8: Packaging & Storage</h2>
             <p class="hint">Pack ground products into bags and store in finished goods godowns</p>
 
-            <div class="form-group">
-                <label>Select Order:</label>
-                <select id="packaging_order_id">
-                    <option value="">Select order...</option>
-                </select>
+            <div class="section">
+                <h3>Select Packaging Source</h3>
+                <div class="form-group">
+                    <label>
+                        <input type="radio" name="packaging_source" value="order" onchange="togglePackagingSource()" checked>
+                        Package from Order (Grinding Output)
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="radio" name="packaging_source" value="shallow" onchange="togglePackagingSource()">
+                        Package from Shallow (MAIDA only)
+                    </label>
+                </div>
+            </div>
+
+            <div id="packaging-from-order-section">
+                <div class="form-group">
+                    <label>Select Order:</label>
+                    <select id="packaging_order_id">
+                        <option value="">Select order...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="packaging-from-shallow-section" style="display: none;">
+                <div class="form-group">
+                    <label>Select Shallow (Source):</label>
+                    <select id="packaging_shallow_source_id">
+                        <option value="">Select shallow...</option>
+                    </select>
+                </div>
             </div>
 
             <div id="packaging-details" style="display: none;">
