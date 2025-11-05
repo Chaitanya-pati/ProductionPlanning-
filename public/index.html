@@ -246,6 +246,49 @@
                 </div>
             </div>
 
+            <div id="lab-tests-section" style="display: none;">
+                <div class="section">
+                    <h3>Hourly Lab Tests (Moisture)</h3>
+                    <p class="hint">Record moisture levels for each product during grinding</p>
+                    
+                    <form id="lab-test-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Start Time:</label>
+                                <input type="time" id="lab_start_time" required>
+                            </div>
+                            <div class="form-group">
+                                <label>End Time:</label>
+                                <input type="time" id="lab_end_time" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Product:</label>
+                                <select id="lab_product_type" required>
+                                    <option value="">Select Product</option>
+                                    <option value="Maida">Maida</option>
+                                    <option value="Suji">Suji</option>
+                                    <option value="Chakki Ata">Chakki Ata</option>
+                                    <option value="Tandoori">Tandoori</option>
+                                    <option value="Bran">Bran</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Moisture (%):</label>
+                                <input type="number" id="lab_moisture" step="0.01" placeholder="e.g., 12.5" required>
+                            </div>
+                            <button type="submit" class="btn-primary">Submit Lab Test</button>
+                        </div>
+                    </form>
+                    
+                    <div id="lab-test-message" class="message"></div>
+                    
+                    <div id="lab-tests-display" style="margin-top: 20px;">
+                        <h4>Submitted Lab Tests</h4>
+                        <div id="lab-tests-list"></div>
+                    </div>
+                </div>
+            </div>
+
             <div id="grinding-message" class="message"></div>
         </div>
 

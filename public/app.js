@@ -1930,14 +1930,16 @@ document.getElementById('start-grinding').addEventListener('click', async functi
             document.getElementById('start-grinding').style.display = 'none';
             document.getElementById('stop-grinding').style.display = 'inline-block';
             document.getElementById('hourly-reports-section').style.display = 'block';
+            document.getElementById('lab-tests-section').style.display = 'block';
 
             window.currentGrindingJobId = result.data.grinding_job_id;
 
             const messageEl = document.getElementById('grinding-message');
             messageEl.className = 'message success';
-            messageEl.textContent = 'Grinding started! Add hourly reports below.';
+            messageEl.textContent = 'Grinding started! Add hourly reports and lab tests below.';
 
             loadHourlyReports();
+            loadLabTests();
         } else {
             alert(`Error: ${result.error}`);
         }
@@ -1977,6 +1979,10 @@ document.getElementById('stop-grinding').addEventListener('click', async functio
             });
             document.querySelectorAll('.hourly-report-card button').forEach(btn => {
                 btn.disabled = true;
+            });
+            
+            document.querySelectorAll('#lab-test-form input, #lab-test-form select, #lab-test-form button').forEach(el => {
+                el.disabled = true;
             });
         } else {
             alert(`Error: ${result.error}`);
@@ -2225,6 +2231,99 @@ async function loadProductionSummary() {
         console.error('Error loading summary:', error);
     }
 }
+
+async function loadLabTests() {
+    if (!window.currentGrindingJobId) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/grinding/lab-tests/${window.currentGrindingJobId}`);
+        const result = await response.json();
+
+        const listEl = document.getElementById('lab-tests-list');
+        
+        if (result.success && result.data.length > 0) {
+            listEl.innerHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Time Range</th>
+                            <th>Product</th>
+                            <th>Moisture (%)</th>
+                            <th>Submitted At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.data.map(test => `
+                            <tr>
+                                <td>${test.start_time} - ${test.end_time}</td>
+                                <td>${test.product_type}</td>
+                                <td>${test.moisture.toFixed(2)}%</td>
+                                <td>${new Date(test.submitted_at).toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } else {
+            listEl.innerHTML = '<p>No lab tests submitted yet.</p>';
+        }
+    } catch (error) {
+        console.error('Error loading lab tests:', error);
+    }
+}
+
+document.getElementById('lab-test-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!window.currentGrindingJobId) {
+        alert('No grinding job active');
+        return;
+    }
+    
+    const startTime = document.getElementById('lab_start_time').value;
+    const endTime = document.getElementById('lab_end_time').value;
+    const productType = document.getElementById('lab_product_type').value;
+    const moisture = parseFloat(document.getElementById('lab_moisture').value);
+    
+    if (!startTime || !endTime || !productType || isNaN(moisture)) {
+        alert('Please fill all fields');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/grinding/lab-test`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                grinding_job_id: window.currentGrindingJobId,
+                start_time: startTime,
+                end_time: endTime,
+                product_type: productType,
+                moisture: moisture
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const messageEl = document.getElementById('lab-test-message');
+            messageEl.className = 'message success';
+            messageEl.textContent = 'Lab test submitted successfully!';
+            
+            document.getElementById('lab-test-form').reset();
+            
+            loadLabTests();
+            
+            setTimeout(() => {
+                messageEl.textContent = '';
+            }, 3000);
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+});
 
 // FINISHED GOODS GODOWN MANAGEMENT
 async function loadGodowns() {
