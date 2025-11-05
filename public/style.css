@@ -740,22 +740,12 @@ header p {
     border-radius: 10px;
     border: 2px solid #e2e8f0;
     transition: all 0.3s ease;
-    cursor: move;
+    cursor: pointer;
 }
 
 .sequence-bin-item:hover {
     border-color: #667eea;
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
-}
-
-.drag-handle {
-    color: #a0aec0;
-    font-size: 1.3em;
-    cursor: grab;
-}
-
-.drag-handle:active {
-    cursor: grabbing;
 }
 
 .bin-info {

@@ -904,10 +904,9 @@ async function load12HRBinsSequence() {
             if (bins12HR.length > 0) {
                 container.innerHTML = bins12HR.map(bin => `
                     <div class="sequence-bin-item" data-bin-id="${bin.id}">
-                        <span class="drag-handle">☰</span>
+                        <input type="checkbox" class="bin-checkbox" value="${bin.id}">
                         <span class="bin-info">${bin.bin_name} (${bin.identity_number})</span>
-                        <span class="bin-status">Current: ${bin.current_quantity}/${bin.capacity} tons</span>
-                        <input type="checkbox" class="bin-checkbox" value="${bin.id}" checked>
+                        <span class="bin-status">Available: ${bin.capacity - bin.current_quantity}/${bin.capacity} tons</span>
                     </div>
                 `).join('');
             } else {
@@ -975,11 +974,47 @@ document.getElementById('sequential_source_bin').addEventListener('change', asyn
                         <p><strong>Capacity:</strong> ${bin.capacity} tons</p>
                     </div>
                 `;
+                detailsEl.setAttribute('data-available', bin.current_quantity);
                 document.getElementById('execute-sequential-transfer').style.display = 'block';
             }
         }
     } catch (error) {
         console.error('Error:', error);
+    }
+});
+
+// Handle transfer quantity type selection
+document.querySelectorAll('input[name="transfer_quantity_type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const customInput = document.getElementById('custom_transfer_quantity');
+        const validationEl = document.getElementById('custom-quantity-validation');
+        
+        if (this.value === 'custom') {
+            customInput.disabled = false;
+            customInput.focus();
+        } else {
+            customInput.disabled = true;
+            customInput.value = '';
+            validationEl.textContent = '';
+        }
+    });
+});
+
+// Validate custom quantity
+document.getElementById('custom_transfer_quantity').addEventListener('input', function() {
+    const detailsEl = document.getElementById('sequential-source-details');
+    const availableQty = parseFloat(detailsEl.getAttribute('data-available')) || 0;
+    const customQty = parseFloat(this.value) || 0;
+    const validationEl = document.getElementById('custom-quantity-validation');
+    
+    if (customQty > availableQty) {
+        validationEl.textContent = `⚠️ Exceeds available quantity (${availableQty} tons)`;
+        validationEl.style.color = '#ef4444';
+    } else if (customQty > 0) {
+        validationEl.textContent = `✓ Valid quantity`;
+        validationEl.style.color = '#10b981';
+    } else {
+        validationEl.textContent = '';
     }
 });
 
@@ -1000,19 +1035,51 @@ document.getElementById('execute-sequential-transfer').addEventListener('click',
         return;
     }
     
-    if (!confirm(`Execute sequential transfer? This will transfer from the 24HR bin to ${destinationSequence.length} selected 12HR bins.`)) {
+    // Determine transfer quantity
+    const quantityType = document.querySelector('input[name="transfer_quantity_type"]:checked').value;
+    let transferQuantity = null;
+    
+    if (quantityType === 'custom') {
+        const customQty = parseFloat(document.getElementById('custom_transfer_quantity').value);
+        if (!customQty || customQty <= 0) {
+            alert('Please enter a valid custom quantity');
+            return;
+        }
+        
+        const detailsEl = document.getElementById('sequential-source-details');
+        const availableQty = parseFloat(detailsEl.getAttribute('data-available')) || 0;
+        
+        if (customQty > availableQty) {
+            alert(`Custom quantity (${customQty} tons) exceeds available quantity (${availableQty} tons)`);
+            return;
+        }
+        
+        transferQuantity = customQty;
+    }
+    
+    const confirmMsg = transferQuantity 
+        ? `Execute sequential transfer of ${transferQuantity} tons from the 24HR bin to ${destinationSequence.length} selected 12HR bins?`
+        : `Execute sequential transfer of the full quantity from the 24HR bin to ${destinationSequence.length} selected 12HR bins?`;
+    
+    if (!confirm(confirmMsg)) {
         return;
     }
     
     try {
+        const requestBody = { 
+            order_id: parseInt(orderId), 
+            source_bin_id: parseInt(sourceBinId),
+            destination_sequence: destinationSequence
+        };
+        
+        if (transferQuantity) {
+            requestBody.transfer_quantity = transferQuantity;
+        }
+        
         const response = await fetch(`${API_URL}/api/transfers/sequential`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                order_id: parseInt(orderId), 
-                source_bin_id: parseInt(sourceBinId),
-                destination_sequence: destinationSequence
-            })
+            body: JSON.stringify(requestBody)
         });
         
         const result = await response.json();

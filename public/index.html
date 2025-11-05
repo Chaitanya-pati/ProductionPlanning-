@@ -127,8 +127,26 @@
                 <div id="sequential-source-details"></div>
 
                 <div class="section">
-                    <h3>Destination 12HR Bins Sequence</h3>
-                    <p class="hint">Drag to reorder bins. System will fill each bin to capacity (25 tons) sequentially.</p>
+                    <h3>Transfer Quantity</h3>
+                    <div class="form-group">
+                        <label>
+                            <input type="radio" name="transfer_quantity_type" value="full" checked>
+                            Transfer Full Quantity from Source Bin
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="radio" name="transfer_quantity_type" value="custom">
+                            Transfer Custom Quantity:
+                        </label>
+                        <input type="number" id="custom_transfer_quantity" step="0.01" placeholder="Enter quantity in tons" disabled>
+                        <span id="custom-quantity-validation" class="hint"></span>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>Destination 12HR Bins Selection</h3>
+                    <p class="hint">Select bins to transfer to. System will fill each bin to capacity (25 tons) in the order shown.</p>
                     <div id="sequential-destinations-container"></div>
                 </div>
 

@@ -515,7 +515,7 @@ app.post('/api/transfers/blended', (req, res) => {
 
 app.post('/api/transfers/sequential', (req, res) => {
   try {
-    const { order_id, source_bin_id, destination_sequence } = req.body;
+    const { order_id, source_bin_id, destination_sequence, transfer_quantity } = req.body;
     
     if (!order_id || !source_bin_id || !destination_sequence || !Array.isArray(destination_sequence)) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
@@ -526,7 +526,17 @@ app.post('/api/transfers/sequential', (req, res) => {
       return res.status(404).json({ success: false, error: 'Source bin not found' });
     }
 
-    let remainingQuantity = sourceBin.current_quantity;
+    // Use custom quantity if provided, otherwise use full quantity from source bin
+    let remainingQuantity = transfer_quantity ? parseFloat(transfer_quantity) : sourceBin.current_quantity;
+    
+    // Validate custom quantity
+    if (transfer_quantity && remainingQuantity > sourceBin.current_quantity) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Transfer quantity (${remainingQuantity} tons) exceeds available quantity (${sourceBin.current_quantity} tons)` 
+      });
+    }
+    
     let totalTransferred = 0;
 
     const insertTransferJob = db.prepare(`
