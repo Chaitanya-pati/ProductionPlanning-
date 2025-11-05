@@ -2032,6 +2032,8 @@ async function initPackaging() {
     }
 }
 
+}
+
 // TIMELINE VIEW
 
 async function loadOrdersForTimeline() {
