@@ -746,7 +746,7 @@ app.post('/api/grinding/report', (req, res) => {
     const { 
       grinding_job_id, report_number, start_time, end_time,
       maida_tons, suji_tons, chakki_ata_tons, tandoori_tons,
-      main_total_tons, bran_tons, grand_total_tons
+      bran_tons, grand_total_tons
     } = req.body;
     
     if (!grinding_job_id || !report_number || !start_time || !end_time) {
@@ -762,12 +762,13 @@ app.post('/api/grinding/report', (req, res) => {
       return res.status(400).json({ success: false, error: 'Cannot submit reports when grinding is not started' });
     }
     
-    const maidaPercent = (maida_tons / grand_total_tons) * 100;
-    const sujiPercent = (suji_tons / grand_total_tons) * 100;
-    const chakkiPercent = (chakki_ata_tons / grand_total_tons) * 100;
-    const tandooriPercent = (tandoori_tons / grand_total_tons) * 100;
-    const mainPercent = (main_total_tons / grand_total_tons) * 100;
-    const branPercent = (bran_tons / grand_total_tons) * 100;
+    const maidaPercent = grand_total_tons > 0 ? (maida_tons / grand_total_tons) * 100 : 0;
+    const sujiPercent = grand_total_tons > 0 ? (suji_tons / grand_total_tons) * 100 : 0;
+    const chakkiPercent = grand_total_tons > 0 ? (chakki_ata_tons / grand_total_tons) * 100 : 0;
+    const tandooriPercent = grand_total_tons > 0 ? (tandoori_tons / grand_total_tons) * 100 : 0;
+    const branPercent = grand_total_tons > 0 ? (bran_tons / grand_total_tons) * 100 : 0;
+    const mainTotal = maida_tons + suji_tons + chakki_ata_tons + tandoori_tons;
+    const mainPercent = grand_total_tons > 0 ? (mainTotal / grand_total_tons) * 100 : 0;
     
     const insertReport = db.prepare(`
       INSERT INTO hourly_reports (
@@ -782,7 +783,7 @@ app.post('/api/grinding/report', (req, res) => {
     insertReport.run(
       grinding_job_id, report_number, start_time, end_time,
       maida_tons, suji_tons, chakki_ata_tons, tandoori_tons,
-      main_total_tons, bran_tons, grand_total_tons,
+      mainTotal, bran_tons, grand_total_tons,
       maidaPercent, sujiPercent, chakkiPercent, tandooriPercent,
       mainPercent, branPercent
     );

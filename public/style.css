@@ -1148,3 +1148,78 @@ header p {
     color: #ffc107;
     font-weight: 600;
 }
+
+
+.product-summary {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.product-summary h5 {
+    margin: 0 0 10px 0;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.product-breakdown-grid {
+    display: grid;
+    gap: 8px;
+}
+
+.product-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 4px;
+    border-left: 3px solid #3498db;
+}
+
+.product-item.valid-bran {
+    border-left-color: #27ae60;
+    background: #f0fdf4;
+}
+
+.product-item.warning-bran {
+    border-left-color: #f39c12;
+    background: #fef3e2;
+}
+
+.product-name {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.product-value {
+    color: #555;
+    font-family: 'Courier New', monospace;
+}
+
+.validation-success {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #d4edda;
+    color: #155724;
+    border-radius: 4px;
+    border-left: 3px solid #28a745;
+}
+
+.validation-warning {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: #fff3cd;
+    color: #856404;
+    border-radius: 4px;
+    border-left: 3px solid #ffc107;
+}
+
+.summary-card.grand-total {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.summary-card.grand-total h5,
+.summary-card.grand-total .value {
+    color: white;
+}

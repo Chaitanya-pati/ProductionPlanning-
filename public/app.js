@@ -1296,36 +1296,32 @@ function addHourlyReportRow() {
         <div class="report-grid">
             <div class="report-input-group">
                 <label>Maida (tons):</label>
-                <input type="number" step="0.01" id="maida_${reportNumber}" onchange="calculateReport(${reportNumber})">
+                <input type="number" step="0.01" id="maida_${reportNumber}" oninput="calculateReport(${reportNumber})">
             </div>
             <div class="report-input-group">
                 <label>Suji (tons):</label>
-                <input type="number" step="0.01" id="suji_${reportNumber}" onchange="calculateReport(${reportNumber})">
+                <input type="number" step="0.01" id="suji_${reportNumber}" oninput="calculateReport(${reportNumber})">
             </div>
             <div class="report-input-group">
                 <label>Chakki Ata (tons):</label>
-                <input type="number" step="0.01" id="chakki_${reportNumber}" onchange="calculateReport(${reportNumber})">
+                <input type="number" step="0.01" id="chakki_${reportNumber}" oninput="calculateReport(${reportNumber})">
             </div>
             <div class="report-input-group">
                 <label>Tandoori (tons):</label>
-                <input type="number" step="0.01" id="tandoori_${reportNumber}" onchange="calculateReport(${reportNumber})">
-            </div>
-        </div>
-        <div class="report-grid">
-            <div class="report-input-group">
-                <label>Main Total (tons):</label>
-                <input type="number" step="0.01" id="main_total_${reportNumber}" readonly>
+                <input type="number" step="0.01" id="tandoori_${reportNumber}" oninput="calculateReport(${reportNumber})">
             </div>
             <div class="report-input-group">
                 <label>Bran (tons):</label>
-                <input type="number" step="0.01" id="bran_${reportNumber}" readonly>
+                <input type="number" step="0.01" id="bran_${reportNumber}" oninput="calculateReport(${reportNumber})">
             </div>
+        </div>
+        <div class="report-grid">
             <div class="report-input-group">
                 <label>Grand Total (tons):</label>
                 <input type="number" step="0.01" id="grand_total_${reportNumber}" readonly>
             </div>
         </div>
-        <div id="validation_${reportNumber}"></div>
+        <div id="product_summary_${reportNumber}" class="product-summary"></div>
         <button onclick="submitHourlyReport(${reportNumber})" class="btn-primary" style="margin-top: 15px;">Submit Report ${reportNumber}</button>
     `;
     reportsList.appendChild(reportCard);
@@ -1336,24 +1332,52 @@ function calculateReport(reportNumber) {
     const suji = parseFloat(document.getElementById(`suji_${reportNumber}`).value) || 0;
     const chakki = parseFloat(document.getElementById(`chakki_${reportNumber}`).value) || 0;
     const tandoori = parseFloat(document.getElementById(`tandoori_${reportNumber}`).value) || 0;
+    const bran = parseFloat(document.getElementById(`bran_${reportNumber}`).value) || 0;
     
-    const mainTotal = maida + suji + chakki + tandoori;
-    const grandTotal = mainTotal / 0.75;
-    const bran = grandTotal - mainTotal;
+    const grandTotal = maida + suji + chakki + tandoori + bran;
     
-    document.getElementById(`main_total_${reportNumber}`).value = mainTotal.toFixed(2);
-    document.getElementById(`bran_${reportNumber}`).value = bran.toFixed(2);
     document.getElementById(`grand_total_${reportNumber}`).value = grandTotal.toFixed(2);
     
-    const branPercent = (bran / grandTotal) * 100;
-    const validationEl = document.getElementById(`validation_${reportNumber}`);
+    const summaryEl = document.getElementById(`product_summary_${reportNumber}`);
     
-    if (branPercent >= 23 && branPercent <= 25) {
-        validationEl.className = 'validation-success';
-        validationEl.textContent = `✓ Bran percentage: ${branPercent.toFixed(2)}% (Ideal range: 23-25%)`;
+    if (grandTotal > 0) {
+        const maidaPercent = (maida / grandTotal) * 100;
+        const sujiPercent = (suji / grandTotal) * 100;
+        const chakkiPercent = (chakki / grandTotal) * 100;
+        const tandooriPercent = (tandoori / grandTotal) * 100;
+        const branPercent = (bran / grandTotal) * 100;
+        
+        summaryEl.innerHTML = `
+            <h5>Product Breakdown</h5>
+            <div class="product-breakdown-grid">
+                <div class="product-item">
+                    <span class="product-name">Maida:</span>
+                    <span class="product-value">${maida.toFixed(2)} tons (${maidaPercent.toFixed(2)}%)</span>
+                </div>
+                <div class="product-item">
+                    <span class="product-name">Suji:</span>
+                    <span class="product-value">${suji.toFixed(2)} tons (${sujiPercent.toFixed(2)}%)</span>
+                </div>
+                <div class="product-item">
+                    <span class="product-name">Chakki Ata:</span>
+                    <span class="product-value">${chakki.toFixed(2)} tons (${chakkiPercent.toFixed(2)}%)</span>
+                </div>
+                <div class="product-item">
+                    <span class="product-name">Tandoori:</span>
+                    <span class="product-value">${tandoori.toFixed(2)} tons (${tandooriPercent.toFixed(2)}%)</span>
+                </div>
+                <div class="product-item ${branPercent >= 23 && branPercent <= 25 ? 'valid-bran' : 'warning-bran'}">
+                    <span class="product-name">Bran:</span>
+                    <span class="product-value">${bran.toFixed(2)} tons (${branPercent.toFixed(2)}%)</span>
+                </div>
+            </div>
+            ${branPercent >= 23 && branPercent <= 25 
+                ? `<div class="validation-success">✓ Bran percentage: ${branPercent.toFixed(2)}% (Ideal range: 23-25%)</div>` 
+                : `<div class="validation-warning">⚠ Bran percentage: ${branPercent.toFixed(2)}% (Outside ideal range: 23-25%)</div>`
+            }
+        `;
     } else {
-        validationEl.className = 'validation-warning';
-        validationEl.textContent = `⚠ Bran percentage: ${branPercent.toFixed(2)}% (Outside ideal range: 23-25%)`;
+        summaryEl.innerHTML = '';
     }
 }
 
@@ -1364,12 +1388,16 @@ async function submitHourlyReport(reportNumber) {
     const suji = parseFloat(document.getElementById(`suji_${reportNumber}`).value) || 0;
     const chakki = parseFloat(document.getElementById(`chakki_${reportNumber}`).value) || 0;
     const tandoori = parseFloat(document.getElementById(`tandoori_${reportNumber}`).value) || 0;
-    const mainTotal = parseFloat(document.getElementById(`main_total_${reportNumber}`).value) || 0;
     const bran = parseFloat(document.getElementById(`bran_${reportNumber}`).value) || 0;
     const grandTotal = parseFloat(document.getElementById(`grand_total_${reportNumber}`).value) || 0;
     
     if (!startTime || !endTime) {
         alert('Please enter start and end times');
+        return;
+    }
+    
+    if (grandTotal === 0) {
+        alert('Please enter product quantities');
         return;
     }
     
@@ -1386,7 +1414,6 @@ async function submitHourlyReport(reportNumber) {
                 suji_tons: suji,
                 chakki_ata_tons: chakki,
                 tandoori_tons: tandoori,
-                main_total_tons: mainTotal,
                 bran_tons: bran,
                 grand_total_tons: grandTotal
             })
@@ -1428,22 +1455,31 @@ async function loadProductionSummary() {
                     <div class="summary-card">
                         <h5>Maida</h5>
                         <div class="value">${summary.total_maida.toFixed(2)} tons</div>
-                        <div class="sub-value">${summary.avg_maida_percent.toFixed(1)}%</div>
+                        <div class="sub-value">${summary.avg_maida_percent.toFixed(2)}%</div>
                     </div>
                     <div class="summary-card">
                         <h5>Suji</h5>
                         <div class="value">${summary.total_suji.toFixed(2)} tons</div>
-                        <div class="sub-value">${summary.avg_suji_percent.toFixed(1)}%</div>
+                        <div class="sub-value">${summary.avg_suji_percent.toFixed(2)}%</div>
                     </div>
                     <div class="summary-card">
                         <h5>Chakki Ata</h5>
                         <div class="value">${summary.total_chakki.toFixed(2)} tons</div>
-                        <div class="sub-value">${summary.avg_chakki_percent.toFixed(1)}%</div>
+                        <div class="sub-value">${summary.avg_chakki_percent.toFixed(2)}%</div>
+                    </div>
+                    <div class="summary-card">
+                        <h5>Tandoori</h5>
+                        <div class="value">${summary.total_tandoori.toFixed(2)} tons</div>
+                        <div class="sub-value">${summary.avg_tandoori_percent.toFixed(2)}%</div>
                     </div>
                     <div class="summary-card">
                         <h5>Bran</h5>
                         <div class="value">${summary.total_bran.toFixed(2)} tons</div>
-                        <div class="sub-value">${summary.avg_bran_percent.toFixed(1)}%</div>
+                        <div class="sub-value">${summary.avg_bran_percent.toFixed(2)}%</div>
+                    </div>
+                    <div class="summary-card grand-total">
+                        <h5>Grand Total</h5>
+                        <div class="value">${summary.grand_total.toFixed(2)} tons</div>
                     </div>
                 </div>
                 <div class="hourly-breakdown">
@@ -1452,11 +1488,12 @@ async function loadProductionSummary() {
                         <div class="hourly-breakdown-item">
                             <div class="time-range">Hour ${r.report_number} (${r.start_time} - ${r.end_time}) <span class="status-submitted">✓ Submitted</span></div>
                             <div class="products">
-                                <span>Maida: ${r.maida_tons}t</span>
-                                <span>Suji: ${r.suji_tons}t</span>
-                                <span>Chakki: ${r.chakki_ata_tons}t</span>
-                                <span>Bran: ${r.bran_tons}t</span>
-                                <span>Total: ${r.grand_total_tons}t</span>
+                                <span>Maida: ${r.maida_tons}t (${r.maida_percent.toFixed(1)}%)</span>
+                                <span>Suji: ${r.suji_tons}t (${r.suji_percent.toFixed(1)}%)</span>
+                                <span>Chakki: ${r.chakki_ata_tons}t (${r.chakki_ata_percent.toFixed(1)}%)</span>
+                                <span>Tandoori: ${r.tandoori_tons}t (${r.tandoori_percent.toFixed(1)}%)</span>
+                                <span>Bran: ${r.bran_tons}t (${r.bran_percent.toFixed(1)}%)</span>
+                                <span><strong>Total: ${r.grand_total_tons}t</strong></span>
                             </div>
                         </div>
                     `).join('')}
