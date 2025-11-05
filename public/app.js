@@ -986,6 +986,18 @@ async function renderBlendedDestinations(plan, orderId) {
                                     <span class="quantity-value">0 tons</span>
                                 </div>
                             </div>
+                            <div class="transfer-moisture-inputs" style="display: none;">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Outgoing Moisture (%):</label>
+                                        <input type="number" class="blended-outgoing-moisture" step="0.01" placeholder="Optional">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Water Added (liters):</label>
+                                        <input type="number" class="blended-water-added" step="0.01" placeholder="Optional">
+                                    </div>
+                                </div>
+                            </div>
                             <div class="transfer-controls">
                                 <button class="btn-start" onclick="startBlendedTransfer('${dest.bin_id}', '${plan.id}', '${orderId}')">START</button>
                                 <button class="btn-stop" onclick="stopBlendedTransfer('${dest.bin_id}', '${plan.id}', '${orderId}')" style="display: none;">STOP</button>
@@ -1079,9 +1091,15 @@ async function startBlendedTransfer(destBinId, planId, orderId) {
             const transferKey = `blended-${destBinId}-${planId}`;
             startTimer(transferKey, timerValue);
 
+            // Show moisture input fields
+            const moistureInputs = item.querySelector('.transfer-moisture-inputs');
+            if (moistureInputs) {
+                moistureInputs.style.display = 'block';
+            }
+
             const messageEl = document.getElementById('blended-message');
             messageEl.className = 'message success';
-            messageEl.textContent = `Transfer started for bin ${destBinId}`;
+            messageEl.textContent = `Transfer started for bin ${destBinId}. Fill in optional details and click STOP when complete.`;
             setTimeout(() => messageEl.style.display = 'none', 3000);
         } else {
             throw new Error(result.error);
@@ -1117,15 +1135,29 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
     const transferKey = `blended-${destBinId}-${planId}`;
     const elapsedMillis = stopTimer(transferKey);
 
+    // Get moisture data from input fields
+    const outgoingMoisture = item.querySelector('.blended-outgoing-moisture').value;
+    const waterAdded = item.querySelector('.blended-water-added').value;
+
     try {
+        const requestBody = { 
+            order_id: parseInt(orderId), 
+            plan_id: parseInt(planId),
+            destination_bin_id: parseInt(destBinId)
+        };
+
+        if (outgoingMoisture) {
+            requestBody.outgoing_moisture = parseFloat(outgoingMoisture);
+        }
+
+        if (waterAdded) {
+            requestBody.water_added = parseFloat(waterAdded);
+        }
+
         const response = await fetch(`${API_URL}/api/transfers/blended/stop`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                order_id: parseInt(orderId), 
-                plan_id: parseInt(planId),
-                destination_bin_id: parseInt(destBinId)
-            })
+            body: JSON.stringify(requestBody)
         });
 
         const result = await response.json();
@@ -1139,10 +1171,24 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
             
             timerValue.textContent = formatDuration(elapsedMillis);
 
+            // Hide moisture input fields
+            const moistureInputs = item.querySelector('.transfer-moisture-inputs');
+            if (moistureInputs) {
+                moistureInputs.style.display = 'none';
+            }
+
             const messageEl = document.getElementById('blended-message');
             messageEl.className = 'message success';
-            messageEl.textContent = `Transfer completed for bin ${destBinId}: ${result.data.transferred_quantity} tons transferred in ${formatDuration(elapsedMillis)}`;
-            setTimeout(() => messageEl.style.display = 'none', 3000);
+            let detailMsg = `Transfer completed for bin ${destBinId}: ${result.data.transferred_quantity} tons transferred in ${formatDuration(elapsedMillis)}`;
+            if (result.data.outgoing_moisture) {
+                detailMsg += `\nOutgoing Moisture: ${result.data.outgoing_moisture}%`;
+            }
+            if (result.data.water_added) {
+                detailMsg += `\nWater Added: ${result.data.water_added} liters`;
+            }
+            messageEl.textContent = detailMsg;
+            messageEl.style.whiteSpace = 'pre-line';
+            setTimeout(() => messageEl.style.display = 'none', 5000);
         } else {
             throw new Error(result.error);
         }
@@ -1420,11 +1466,12 @@ document.getElementById('start-sequential-transfer').addEventListener('click', a
             currentSequentialJobId = result.data.job_id;
             
             messageEl.className = 'message success';
-            messageEl.textContent = 'Transfer started! Click STOP when complete to finalize the transfer.';
+            messageEl.textContent = 'Transfer started! Fill in the optional details below and click STOP when complete.';
 
             document.getElementById('start-sequential-transfer').style.display = 'none';
             document.getElementById('stop-sequential-transfer').style.display = 'inline-block';
             document.getElementById('sequential-transfer-status').style.display = 'block';
+            document.getElementById('sequential-moisture-inputs').style.display = 'block';
             document.getElementById('transfer-status-text').textContent = 'IN PROGRESS';
             document.getElementById('transfer-status-text').className = 'status-value transferring';
             
@@ -1455,9 +1502,9 @@ document.getElementById('stop-sequential-transfer').addEventListener('click', as
     const transferKey = `sequential-${currentSequentialJobId}`;
     const elapsedMillis = stopTimer(transferKey);
 
-    // Show moisture input dialog
-    const outgoingMoisture = prompt('Enter outgoing moisture percentage (optional):');
-    const waterAdded = prompt('Enter water added in liters (optional):');
+    // Get values from input fields
+    const outgoingMoisture = document.getElementById('sequential_outgoing_moisture').value;
+    const waterAdded = document.getElementById('sequential_water_added').value;
 
     try {
         const requestBody = { 
@@ -1505,8 +1552,13 @@ document.getElementById('stop-sequential-transfer').addEventListener('click', as
             timerValue.textContent = formatDuration(elapsedMillis);
 
             document.getElementById('stop-sequential-transfer').style.display = 'none';
+            document.getElementById('sequential-moisture-inputs').style.display = 'none';
             document.getElementById('transfer-status-text').textContent = 'COMPLETED';
             document.getElementById('transfer-status-text').className = 'status-value completed';
+
+            // Clear input fields
+            document.getElementById('sequential_outgoing_moisture').value = '';
+            document.getElementById('sequential_water_added').value = '';
 
             currentSequentialJobId = null;
 

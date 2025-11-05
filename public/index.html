@@ -194,6 +194,21 @@
                             </div>
                         </div>
                     </div>
+                    
+                    <div id="sequential-moisture-inputs" class="section" style="display: none;">
+                        <h4>Transfer Completion Details (Optional)</h4>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Outgoing Moisture (%):</label>
+                                <input type="number" id="sequential_outgoing_moisture" step="0.01" placeholder="e.g., 12.5">
+                            </div>
+                            <div class="form-group">
+                                <label>Water Added (liters):</label>
+                                <input type="number" id="sequential_water_added" step="0.01" placeholder="e.g., 100">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="transfer-controls-container">
                         <button id="start-sequential-transfer" class="btn-start" style="display: none;">START TRANSFER</button>
                         <button id="stop-sequential-transfer" class="btn-stop" style="display: none;">STOP TRANSFER</button>

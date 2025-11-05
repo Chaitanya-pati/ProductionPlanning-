@@ -1041,6 +1041,40 @@ body {
     color: #ef4444;
 }
 
+.transfer-moisture-inputs {
+    grid-column: 1 / -1;
+    padding: 15px;
+    background: #f7fafc;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.transfer-moisture-inputs .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.transfer-moisture-inputs .form-group {
+    margin: 0;
+}
+
+.transfer-moisture-inputs label {
+    font-size: 0.85em;
+    color: #4a5568;
+    font-weight: 600;
+    margin-bottom: 5px;
+    display: block;
+}
+
+.transfer-moisture-inputs input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    font-size: 0.9em;
+}
+
 .transfer-controls {
     display: flex;
     flex-direction: column;
