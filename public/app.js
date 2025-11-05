@@ -986,18 +986,7 @@ async function renderBlendedDestinations(plan, orderId) {
                                     <span class="quantity-value">0 tons</span>
                                 </div>
                             </div>
-                            <div class="transfer-moisture-inputs" style="display: none;">
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Outgoing Moisture (%):</label>
-                                        <input type="number" class="blended-outgoing-moisture" step="0.01" placeholder="Optional">
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Water Added (liters):</label>
-                                        <input type="number" class="blended-water-added" step="0.01" placeholder="Optional">
-                                    </div>
-                                </div>
-                            </div>
+                            
                             <div class="transfer-controls">
                                 <button class="btn-start" onclick="startBlendedTransfer('${dest.bin_id}', '${plan.id}', '${orderId}')">START</button>
                                 <button class="btn-stop" onclick="stopBlendedTransfer('${dest.bin_id}', '${plan.id}', '${orderId}')" style="display: none;">STOP</button>
@@ -1091,12 +1080,6 @@ async function startBlendedTransfer(destBinId, planId, orderId) {
             const transferKey = `blended-${destBinId}-${planId}`;
             startTimer(transferKey, timerValue);
 
-            // Show moisture input fields
-            const moistureInputs = item.querySelector('.transfer-moisture-inputs');
-            if (moistureInputs) {
-                moistureInputs.style.display = 'block';
-            }
-
             const messageEl = document.getElementById('blended-message');
             messageEl.className = 'message success';
             messageEl.textContent = `Transfer started for bin ${destBinId}. Fill in optional details and click STOP when complete.`;
@@ -1135,26 +1118,49 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
     const transferKey = `blended-${destBinId}-${planId}`;
     const elapsedMillis = stopTimer(transferKey);
 
-    // Get moisture data from input fields
-    const outgoingMoisture = item.querySelector('.blended-outgoing-moisture').value;
-    const waterAdded = item.querySelector('.blended-water-added').value;
-
     try {
-        const requestBody = { 
-            order_id: parseInt(orderId), 
-            plan_id: parseInt(planId),
-            destination_bin_id: parseInt(destBinId)
-        };
-
-        if (outgoingMoisture) {
-            requestBody.outgoing_moisture = parseFloat(outgoingMoisture);
-        }
-
-        if (waterAdded) {
-            requestBody.water_added = parseFloat(waterAdded);
-        }
-
         const response = await fetch(`${API_URL}/api/transfers/blended/stop`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                order_id: parseInt(orderId), 
+                plan_id: parseInt(planId),
+                destination_bin_id: parseInt(destBinId)
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            stopBtn.style.display = 'none';
+            startBtn.style.display = 'none';
+            statusValue.textContent = 'Completed';
+            statusValue.className = 'status-value completed';
+            quantityValue.textContent = `${result.data.transferred_quantity} tons`;
+            
+            timerValue.textContent = formatDuration(elapsedMillis);
+
+            const messageEl = document.getElementById('blended-message');
+            messageEl.className = 'message success';
+            messageEl.textContent = `Transfer completed for bin ${destBinId}: ${result.data.transferred_quantity} tons transferred in ${formatDuration(elapsedMillis)}`;
+            setTimeout(() => messageEl.style.display = 'none', 5000);
+        } else {
+            throw new Error(result.error);
+        }
+    } catch (error) {
+        stopBtn.disabled = false;
+        statusValue.textContent = 'Error';
+        statusValue.className = 'status-value error';
+
+        const messageEl = document.getElementById('blended-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
+    }
+}
+
+async function loadOrdersForSequentialTransfer() {
+    try {
+        const response = await fetch(`${API_URL}/api/orders`);
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
@@ -1169,26 +1175,7 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
             statusValue.className = 'status-value completed';
             quantityValue.textContent = `${result.data.transferred_quantity} tons`;
             
-            timerValue.textContent = formatDuration(elapsedMillis);
-
-            // Hide moisture input fields
-            const moistureInputs = item.querySelector('.transfer-moisture-inputs');
-            if (moistureInputs) {
-                moistureInputs.style.display = 'none';
-            }
-
-            const messageEl = document.getElementById('blended-message');
-            messageEl.className = 'message success';
-            let detailMsg = `Transfer completed for bin ${destBinId}: ${result.data.transferred_quantity} tons transferred in ${formatDuration(elapsedMillis)}`;
-            if (result.data.outgoing_moisture) {
-                detailMsg += `\nOutgoing Moisture: ${result.data.outgoing_moisture}%`;
-            }
-            if (result.data.water_added) {
-                detailMsg += `\nWater Added: ${result.data.water_added} liters`;
-            }
-            messageEl.textContent = detailMsg;
-            messageEl.style.whiteSpace = 'pre-line';
-            setTimeout(() => messageEl.style.display = 'none', 5000);
+            
         } else {
             throw new Error(result.error);
         }
