@@ -1927,20 +1927,6 @@ document.getElementById('start-grinding').addEventListener('click', async functi
     if (!confirm('Start grinding process? This will enable hourly report entry.')) {
         return;
     }
-    
-    const binMoistureData = {};
-    for (const bin of window.current12HRBins) {
-        const binName = `${bin.bin_name} (${bin.identity_number})`;
-        const outgoingMoisture = prompt(`Enter outgoing moisture percentage for ${binName} (optional):`);
-        const waterAdded = prompt(`Enter water added in liters for ${binName} (optional):`);
-        
-        if (outgoingMoisture || waterAdded) {
-            binMoistureData[bin.id] = {
-                outgoing_moisture: outgoingMoisture ? parseFloat(outgoingMoisture) : null,
-                water_added: waterAdded ? parseFloat(waterAdded) : null
-            };
-        }
-    }
 
     try {
         const response = await fetch(`${API_URL}/api/grinding/start`, {
@@ -1948,8 +1934,7 @@ document.getElementById('start-grinding').addEventListener('click', async functi
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 order_id: window.currentGrindingOrder.id,
-                bin_ids: window.current12HRBins.map(b => b.id),
-                bin_moisture_data: binMoistureData
+                bin_ids: window.current12HRBins.map(b => b.id)
             })
         });
 
