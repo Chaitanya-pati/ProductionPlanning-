@@ -1210,9 +1210,15 @@ app.post('/api/grinding/start', (req, res) => {
       WHERE destination_bin_id = ? AND transfer_out_at IS NULL
     `);
     
+    const getSeqTransferInTime = db.prepare(`
+      SELECT transfer_in_at FROM sequential_transfer_bins 
+      WHERE destination_bin_id = ? 
+      ORDER BY id DESC LIMIT 1
+    `);
+    
     const insertBin = db.prepare(`
-      INSERT INTO grinding_source_bins (grinding_job_id, bin_id, bin_sequence_order, status, outgoing_moisture, water_added, transfer_out_at)
-      VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+      INSERT INTO grinding_source_bins (grinding_job_id, bin_id, bin_sequence_order, status, outgoing_moisture, water_added, transfer_in_at, transfer_out_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
     
     bin_ids.forEach((binId, index) => {
@@ -1223,7 +1229,10 @@ app.post('/api/grinding/start', (req, res) => {
       
       updateSequentialBinsTransferOut.run(binId);
       
-      insertBin.run(grindingJobId, binId, index + 1, status, outgoingMoisture, waterAdded);
+      const seqTransferData = getSeqTransferInTime.get(binId);
+      const transferInAt = seqTransferData ? seqTransferData.transfer_in_at : null;
+      
+      insertBin.run(grindingJobId, binId, index + 1, status, outgoingMoisture, waterAdded, transferInAt);
     });
     
     const updateOrder = db.prepare(`
