@@ -1384,6 +1384,53 @@ app.get('/api/grinding/summary/:grindingJobId', (req, res) => {
   }
 });
 
+app.post('/api/grinding/lab-test', (req, res) => {
+  try {
+    const { grinding_job_id, start_time, end_time, product_type, moisture } = req.body;
+    
+    if (!grinding_job_id || !start_time || !end_time || !product_type || moisture === undefined) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+    
+    const job = db.prepare('SELECT * FROM grinding_jobs WHERE id = ?').get(grinding_job_id);
+    if (!job) {
+      return res.status(404).json({ success: false, error: 'Grinding job not found' });
+    }
+    
+    if (job.grinding_status !== 'STARTED') {
+      return res.status(400).json({ success: false, error: 'Cannot submit lab tests when grinding is not started' });
+    }
+    
+    const insertLabTest = db.prepare(`
+      INSERT INTO grinding_lab_tests (
+        grinding_job_id, start_time, end_time, product_type, moisture
+      ) VALUES (?, ?, ?, ?, ?)
+    `);
+    
+    const result = insertLabTest.run(grinding_job_id, start_time, end_time, product_type, moisture);
+    
+    res.json({ success: true, data: { id: result.lastInsertRowid, status: 'SUBMITTED' } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/grinding/lab-tests/:grindingJobId', (req, res) => {
+  try {
+    const { grindingJobId } = req.params;
+    
+    const labTests = db.prepare(`
+      SELECT * FROM grinding_lab_tests 
+      WHERE grinding_job_id = ? 
+      ORDER BY start_time, product_type
+    `).all(grindingJobId);
+    
+    res.json({ success: true, data: labTests });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // FINISHED GOODS GODOWN MANAGEMENT
 app.get('/api/godowns', (req, res) => {
   try {
