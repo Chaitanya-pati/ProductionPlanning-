@@ -1,0 +1,144 @@
+PACKAGING - Product Packaging & Storage
+
+**Description**: Pack ground products into bags and store in godowns.
+
+**Trigger**:
+- Grinding completed
+- User navigates to Packaging
+- All data from grinding available
+
+**Product-Based Packaging Logic**:
+
+#### IF PRODUCT = MAIDA:
+```
+Show Options:
+├─ Shallow Selection: [Shallow 1] [Shallow 2] [Shallow 3]
+│  └─ Each shallow has available quantity from shallows table
+│
+├─ Bag Size: [25kg] [30kg] [50kg]
+│
+├─ Number of Bags: [input field]
+│
+└─ Godown Selection: [FG Godown 1] [FG Godown 2] [FG Godown 3]
+
+On Submit:
+├─ Check: Shallow has enough MAIDA quantity
+├─ If YES:
+│  ├─ Calculate: total_kg = bag_size × num_bags
+│  ├─ Deduct from shallow: shallow.current_qty -= total_kg
+│  ├─ Add to godown: godown.current_qty += total_kg
+│  └─ Create packaging_record
+│
+└─ If NO: Show ERROR "Insufficient quantity in shallow"
+```
+
+#### IF PRODUCT = SUJI or OTHER (NOT MAIDA):
+```
+Show Options:
+├─ [NO Shallow Selection] - Hidden/Removed
+│
+├─ Bag Size: [25kg] [30kg] [50kg]
+│
+├─ Number of Bags: [input field]
+│
+└─ Godown Selection: [FG Godown 1] [FG Godown 2] [FG Godown 3]
+
+On Submit:
+├─ Calculate: total_kg = bag_size × num_bags
+├─ Add to godown: godown.current_qty += total_kg
+├─ Create packaging_record
+└─ No shallow deduction
+```
+
+**Database Operations**:
+1. INSERT packaging_record:
+   - grinding_job_id: from current job
+   - order_id: from order
+   - product_type: MAIDA / SUJI / etc
+   - shallow_id: only if MAIDA
+   - bag_size_kg
+   - number_of_bags
+   - total_kg_packed
+   - godown_id
+   - status: 'PACKED'
+
+2. UPDATE maida_shallows (if MAIDA):
+   - current_qty -= total_kg
+
+3. UPDATE godowns:
+   - current_qty += total_kg
+
+4. CREATE storage_transfers (if godown changed):
+   - source: shallow or grinding
+   - destination: godown
+   - quantity: total_kg
+   - timestamp
+
+5. UPDATE orders:
+   - production_stage = 'PACKAGING_COMPLETED'
+
+**Example Packaging Scenario**:
+```
+Order: ORD-2025-001
+Grinding Output: 215.86 tons total
+
+MAIDA PACKAGING:
+├─ From Shallow 1: 75.50 tons MAIDA
+├─ Bag Size: 25 kg
+├─ Number of Bags: 3020 bags (75.50t ÷ 25kg)
+├─ Deduct from Shallow 1: 75.50 - 75.50 = 0 tons remaining
+├─ Add to FG Godown 1: 75.50 tons stored
+└─ Status: PACKED & STORED
+
+SUJI PACKAGING:
+├─ From Grinding Output: 43.20 tons SUJI
+├─ Bag Size: 30 kg
+├─ Number of Bags: 1440 bags (43.20t ÷ 30kg)
+├─ NO shallow deduction (not MAIDA)
+├─ Add to FG Godown 2: 43.20 tons stored
+└─ Status: PACKED & STORED
+
+CHAKKI PACKAGING:
+├─ From Grinding Output: 43.20 tons CHAKKI
+├─ Bag Size: 50 kg
+├─ Number of Bags: 864 bags (43.20t ÷ 50kg)
+├─ Add to FG Godown 3: 43.20 tons stored
+└─ Status: PACKED & STORED
+
+BRAN STORAGE:
+├─ Quantity: 53.96 tons BRAN
+├─ Stored in: FG Godown 1 (same as MAIDA)
+└─ Status: STORED
+```
+
+**Godown Capacity Check**:
+```
+FG Godown 1 (Capacity: 5000 kg):
+├─ Current: 75.50 tons (75,500 kg)
+├─ Available: 5000 - 75.50 = 4924.50 tons
+├─ Attempting to store: 53.96 tons (BRAN)
+├─ After storage: 75.50 + 53.96 = 129.46 tons
+└─ Status: ✅ Sufficient space
+```
+
+**Finished Goods Summary**:
+```
+FINISHED GOODS STORAGE:
+
+Godown 1 (MAIDA + BRAN):
+├─ MAIDA: 75.50 tons (3020 bags × 25kg)
+├─ BRAN: 53.96 tons
+└─ Total: 129.46 tons
+
+Godown 2 (SUJI):
+├─ SUJI: 43.20 tons (1440 bags × 30kg)
+└─ Total: 43.20 tons
+
+Godown 3 (CHAKKI):
+├─ CHAKKI: 43.20 tons (864 bags × 50kg)
+└─ Total: 43.20 tons
+
+GRAND TOTAL: 215.86 tons (matches grinding output ✅)
+```
+
+**Next Stage**: COMPLETED
