@@ -1325,6 +1325,8 @@ function updateSequentialPreview() {
     }
 }
 
+let currentSequentialJobId = null;
+
 document.getElementById('start-sequential-transfer').addEventListener('click', async function() {
     const orderId = document.getElementById('sequential_order_id').value;
     const sourceBinId = document.getElementById('sequential_source_bin').value;
@@ -1349,15 +1351,72 @@ document.getElementById('start-sequential-transfer').addEventListener('click', a
     try {
         const requestBody = { 
             order_id: parseInt(orderId), 
-            source_bin_id: parseInt(sourceBinId),
-            destination_sequence: selectedSequentialBins
+            source_bin_id: parseInt(sourceBinId)
         };
 
         if (transferQuantity) {
             requestBody.transfer_quantity = transferQuantity;
         }
 
-        const response = await fetch(`${API_URL}/api/transfers/sequential`, {
+        const response = await fetch(`${API_URL}/api/transfers/sequential/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+
+        const result = await response.json();
+        const messageEl = document.getElementById('sequential-message');
+
+        if (result.success) {
+            currentSequentialJobId = result.data.job_id;
+            
+            messageEl.className = 'message success';
+            messageEl.textContent = 'Transfer started! Click STOP when complete to finalize the transfer.';
+
+            document.getElementById('start-sequential-transfer').style.display = 'none';
+            document.getElementById('stop-sequential-transfer').style.display = 'inline-block';
+            document.getElementById('sequential-transfer-status').style.display = 'block';
+            document.getElementById('transfer-status-text').textContent = 'IN PROGRESS';
+            document.getElementById('transfer-status-text').className = 'status-value transferring';
+        } else {
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
+        }
+    } catch (error) {
+        const messageEl = document.getElementById('sequential-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
+    }
+});
+
+document.getElementById('stop-sequential-transfer').addEventListener('click', async function() {
+    if (!currentSequentialJobId) {
+        alert('No active transfer job found');
+        return;
+    }
+
+    const orderId = document.getElementById('sequential_order_id').value;
+
+    // Show moisture input dialog
+    const outgoingMoisture = prompt('Enter outgoing moisture percentage (optional):');
+    const waterAdded = prompt('Enter water added in liters (optional):');
+
+    try {
+        const requestBody = { 
+            job_id: currentSequentialJobId,
+            order_id: parseInt(orderId), 
+            destination_sequence: selectedSequentialBins
+        };
+
+        if (outgoingMoisture) {
+            requestBody.outgoing_moisture = parseFloat(outgoingMoisture);
+        }
+
+        if (waterAdded) {
+            requestBody.water_added = parseFloat(waterAdded);
+        }
+
+        const response = await fetch(`${API_URL}/api/transfers/sequential/stop`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody)
@@ -1368,18 +1427,27 @@ document.getElementById('start-sequential-transfer').addEventListener('click', a
 
         if (result.success) {
             messageEl.className = 'message success';
-            let detailMsg = `Transfer completed! ${result.data.total_quantity} tons transferred. Remaining in source: ${result.data.remaining_in_source} tons.`;
+            let detailMsg = `Transfer completed! ${result.data.total_transferred} tons transferred.`;
             if (result.data.distribution_details) {
                 detailMsg += '\n\nDistribution:';
                 result.data.distribution_details.forEach(d => {
                     detailMsg += `\n• ${d.bin_name}: ${d.transferred} tons`;
                 });
             }
+            if (result.data.outgoing_moisture) {
+                detailMsg += `\n\nOutgoing Moisture: ${result.data.outgoing_moisture}%`;
+            }
+            if (result.data.water_added) {
+                detailMsg += `\nWater Added: ${result.data.water_added} liters`;
+            }
             messageEl.textContent = detailMsg;
             messageEl.style.whiteSpace = 'pre-line';
 
-            document.getElementById('start-sequential-transfer').style.display = 'none';
             document.getElementById('stop-sequential-transfer').style.display = 'none';
+            document.getElementById('transfer-status-text').textContent = 'COMPLETED';
+            document.getElementById('transfer-status-text').className = 'status-value completed';
+
+            currentSequentialJobId = null;
 
             setTimeout(() => {
                 showTab('orders', document.querySelector('[onclick*="orders"]'));

@@ -1116,6 +1116,17 @@ body {
     justify-content: center;
 }
 
+.status-value.transferring {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.status-value.completed {
+    color: #10b981;
+    font-weight: 600;
+}
+}
+
 .hourly-report-card {
     background: white;
     border: 1.5px solid #e2e8f0;
