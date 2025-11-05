@@ -1808,14 +1808,14 @@ async function loadGodowns() {
     try {
         const response = await fetch(`${API_URL}/api/godowns`);
         const result = await response.json();
-        
+
         if (result.success) {
             const list = document.getElementById('godowns-list');
             if (result.data.length === 0) {
                 list.innerHTML = '<p>No godowns found. Add one above.</p>';
                 return;
             }
-            
+
             list.innerHTML = '<table class="data-table"><thead><tr><th>Godown Name</th><th>Code</th><th>Capacity</th><th>Current Qty</th><th>Available</th><th>Location</th></tr></thead><tbody>' +
                 result.data.map(g => `
                     <tr>
@@ -1835,24 +1835,24 @@ async function loadGodowns() {
 
 document.getElementById('godown-form')?.addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+
     const formData = {
         godown_name: document.getElementById('godown_name').value,
         godown_code: document.getElementById('godown_code').value,
         capacity: parseFloat(document.getElementById('godown_capacity').value),
         location: document.getElementById('godown_location').value
     };
-    
+
     try {
         const response = await fetch(`${API_URL}/api/godowns`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         });
-        
+
         const result = await response.json();
         const messageEl = document.getElementById('godown-message');
-        
+
         if (result.success) {
             messageEl.className = 'message success';
             messageEl.textContent = 'Godown added successfully!';
@@ -1874,14 +1874,14 @@ async function loadShallows() {
     try {
         const response = await fetch(`${API_URL}/api/shallows`);
         const result = await response.json();
-        
+
         if (result.success) {
             const list = document.getElementById('shallows-list');
             if (result.data.length === 0) {
                 list.innerHTML = '<p>No shallows found. Add one above.</p>';
                 return;
             }
-            
+
             list.innerHTML = '<table class="data-table"><thead><tr><th>Shallow Name</th><th>Code</th><th>Capacity</th><th>Current Qty</th><th>Available</th></tr></thead><tbody>' +
                 result.data.map(s => `
                     <tr>
@@ -1892,21 +1892,21 @@ async function loadShallows() {
                         <td>${(s.capacity - s.current_quantity).toFixed(2)} tons</td>
                     </tr>
                 `).join('') + '</tbody></table>';
-            
+
             // Update transfer shallow dropdown
             const transferSelect = document.getElementById('transfer_shallow_id');
             if (transferSelect) {
                 transferSelect.innerHTML = '<option value="">Select shallow...</option>' +
                     result.data.map(s => `<option value="${s.id}">${s.shallow_name} (${s.current_quantity}/${s.capacity} tons)</option>`).join('');
             }
-            
+
             // Update packaging shallow dropdown (for storing TO shallow)
             const packagingSelect = document.getElementById('packaging_shallow_id');
             if (packagingSelect) {
                 packagingSelect.innerHTML = '<option value="">Select shallow...</option>' +
                     result.data.map(s => `<option value="${s.id}">${s.shallow_name} (${s.current_quantity} tons available)</option>`).join('');
             }
-            
+
             // Update packaging shallow source dropdown (for packaging FROM shallow)
             const packagingSourceSelect = document.getElementById('packaging_shallow_source_id');
             if (packagingSourceSelect) {
@@ -1921,23 +1921,23 @@ async function loadShallows() {
 
 document.getElementById('shallow-form')?.addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+
     const formData = {
         shallow_name: document.getElementById('shallow_name').value,
         shallow_code: document.getElementById('shallow_code').value,
         capacity: parseFloat(document.getElementById('shallow_capacity').value)
     };
-    
+
     try {
         const response = await fetch(`${API_URL}/api/shallows`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(formData)
         });
-        
+
         const result = await response.json();
         const messageEl = document.getElementById('shallow-message');
-        
+
         if (result.success) {
             messageEl.className = 'message success';
             messageEl.textContent = 'Shallow added successfully!';
@@ -1958,22 +1958,22 @@ async function transferToShallow() {
     const shallowId = document.getElementById('transfer_shallow_id').value;
     const quantity = parseFloat(document.getElementById('transfer_shallow_quantity').value);
     const messageEl = document.getElementById('shallow-transfer-message');
-    
+
     if (!shallowId || !quantity || quantity <= 0) {
         messageEl.className = 'message error';
         messageEl.textContent = 'Please select a shallow and enter a valid quantity';
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/api/shallows/${shallowId}/add`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ quantity })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             messageEl.className = 'message success';
             messageEl.textContent = `Successfully transferred ${quantity} tons to shallow. New quantity: ${result.data.new_quantity} tons`;
@@ -1995,14 +1995,14 @@ async function initPackaging() {
         // Load orders for packaging
         const ordersResponse = await fetch(`${API_URL}/api/orders`);
         const ordersResult = await ordersResponse.json();
-        
+
         const packagingSelect = document.getElementById('packaging_order_id');
         if (ordersResult.success && ordersResult.data.length > 0) {
             const completedOrders = ordersResult.data.filter(o => 
                 o.production_stage === 'GRINDING_COMPLETED' || 
                 o.production_stage === 'PACKAGING_COMPLETED'
             );
-            
+
             if (completedOrders.length > 0) {
                 packagingSelect.innerHTML = '<option value="">Select order...</option>' +
                     completedOrders.map(order => 
@@ -2012,11 +2012,11 @@ async function initPackaging() {
                 packagingSelect.innerHTML = '<option value="">No completed orders available</option>';
             }
         }
-        
+
         // Load godowns
         const godownsResponse = await fetch(`${API_URL}/api/godowns`);
         const godownsResult = await godownsResponse.json();
-        
+
         const godownSelect = document.getElementById('packaging_godown_id');
         if (godownsResult.success && godownsResult.data.length > 0) {
             godownSelect.innerHTML = '<option value="">Select godown...</option>' +
@@ -2024,7 +2024,7 @@ async function initPackaging() {
                     `<option value="${g.id}">${g.godown_name} (${(g.capacity - g.current_quantity).toFixed(2)} tons available)</option>`
                 ).join('');
         }
-        
+
         // Load shallows
         await loadShallows();
     } catch (error) {
@@ -2058,9 +2058,9 @@ function togglePackagingSource() {
     const source = document.querySelector('input[name="packaging_source"]:checked');
     const orderSection = document.getElementById('packaging-from-order-section');
     const shallowSection = document.getElementById('packaging-from-shallow-section');
-    
+
     if (!source) return;
-    
+
     if (source.value === 'order') {
         orderSection.style.display = 'block';
         shallowSection.style.display = 'none';
@@ -2075,35 +2075,35 @@ function togglePackagingSource() {
 document.getElementById('packaging_order_id')?.addEventListener('change', async function() {
     const orderId = this.value;
     const detailsDiv = document.getElementById('packaging-details');
-    
+
     if (!orderId) {
         detailsDiv.style.display = 'none';
         return;
     }
-    
+
     try {
         // Get order details
         const orderResponse = await fetch(`${API_URL}/api/orders/${orderId}`);
         const orderResult = await orderResponse.json();
-        
+
         if (!orderResult.success) {
             alert('Error loading order');
             return;
         }
-        
+
         const order = orderResult.data;
-        
+
         // Get grinding job for this order
         const grindingResponse = await fetch(`${API_URL}/api/timeline/${orderId}`);
         const grindingResult = await grindingResponse.json();
-        
+
         if (!grindingResult.success || !grindingResult.data.grinding) {
             alert('No grinding data found for this order');
             return;
         }
-        
+
         const grinding = grindingResult.data.grinding;
-        
+
         document.getElementById('packaging-order-info').innerHTML = `
             <h4>Order Information</h4>
             <p><strong>Order Number:</strong> ${order.order_number}</p>
@@ -2111,7 +2111,7 @@ document.getElementById('packaging_order_id')?.addEventListener('change', async 
             <p><strong>Total Quantity:</strong> ${order.quantity} tons</p>
             <p><strong>Status:</strong> <span class="status-badge">${order.production_stage}</span></p>
         `;
-        
+
         if (grinding.summary) {
             document.getElementById('grinding-output-summary').innerHTML = `
                 <div class="summary-grid">
@@ -2142,11 +2142,11 @@ document.getElementById('packaging_order_id')?.addEventListener('change', async 
                 </div>
             `;
         }
-        
+
         // Load existing packaging records
         const packagingResponse = await fetch(`${API_URL}/api/packaging/${orderId}`);
         const packagingResult = await packagingResponse.json();
-        
+
         if (packagingResult.success && packagingResult.data.length > 0) {
             document.getElementById('packaging-records').innerHTML = 
                 '<table class="data-table"><thead><tr><th>Product</th><th>Shallow</th><th>Bag Size</th><th>Bags</th><th>Total Weight</th><th>Godown</th><th>Status</th></tr></thead><tbody>' +
@@ -2164,10 +2164,10 @@ document.getElementById('packaging_order_id')?.addEventListener('change', async 
         } else {
             document.getElementById('packaging-records').innerHTML = '<p>No packaging records yet for this order.</p>';
         }
-        
+
         // Store grinding job ID for packaging submission
         document.getElementById('packaging-details').dataset.grindingJobId = grinding.id;
-        
+
         detailsDiv.style.display = 'block';
     } catch (error) {
         console.error('Error loading packaging details:', error);
@@ -2178,14 +2178,14 @@ document.getElementById('packaging_order_id')?.addEventListener('change', async 
 function toggleShallowSelection() {
     const packagingSource = document.querySelector('input[name="packaging_source"]:checked');
     if (!packagingSource) return;
-    
+
     const productType = packagingSource.value === 'order' 
         ? document.getElementById('packaging_product_type').value 
         : 'MAIDA'; // From shallow is always MAIDA
-    
+
     const maidaOptions = document.getElementById('maida-storage-options');
     const bagSection = document.getElementById('bag-packaging-section');
-    
+
     if (packagingSource.value === 'order') {
         if (productType === 'MAIDA') {
             maidaOptions.style.display = 'block';
@@ -2206,9 +2206,9 @@ function toggleMaidaStorageMethod() {
     const selectedMethod = document.querySelector('input[name="maida_storage_method"]:checked');
     const shallowDiv = document.getElementById('shallow-selection');
     const bagSection = document.getElementById('bag-packaging-section');
-    
+
     if (!selectedMethod) return;
-    
+
     if (selectedMethod.value === 'shallow') {
         shallowDiv.style.display = 'block';
         bagSection.style.display = 'none';
@@ -2230,7 +2230,7 @@ function toggleMaidaStorageMethod() {
 function calculateTotalWeight() {
     const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
     const numBags = parseInt(document.getElementById('packaging_num_bags').value);
-    
+
     if (bagSize && numBags) {
         const totalKg = bagSize * numBags;
         const totalTons = totalKg / 1000;
@@ -2243,20 +2243,20 @@ function calculateTotalWeight() {
 async function submitPackaging() {
     const packagingSource = document.querySelector('input[name="packaging_source"]:checked');
     const messageEl = document.getElementById('packaging-message');
-    
+
     if (!packagingSource) {
         messageEl.className = 'message error';
         messageEl.textContent = 'Please select a packaging source (Order or Shallow)';
         return;
     }
-    
+
     let orderId, grindingJobId, productType;
-    
+
     if (packagingSource.value === 'order') {
         orderId = document.getElementById('packaging_order_id').value;
         grindingJobId = document.getElementById('packaging-details').dataset.grindingJobId;
         productType = document.getElementById('packaging_product_type').value;
-        
+
         if (!orderId || !productType) {
             messageEl.className = 'message error';
             messageEl.textContent = 'Please select an order and product type';
@@ -2268,35 +2268,35 @@ async function submitPackaging() {
         orderId = null;
         grindingJobId = null;
     }
-    
+
     let packagingData = {
         order_id: orderId ? parseInt(orderId) : null,
         grinding_job_id: grindingJobId ? parseInt(grindingJobId) : null,
         product_type: productType,
         packaging_source: packagingSource.value
     };
-    
+
     // Check if MAIDA from order and which storage method
     if (productType === 'MAIDA' && packagingSource.value === 'order') {
         const storageMethod = document.querySelector('input[name="maida_storage_method"]:checked');
-        
+
         if (!storageMethod) {
             messageEl.className = 'message error';
             messageEl.textContent = 'Please select a storage method for MAIDA';
             return;
         }
-        
+
         if (storageMethod.value === 'shallow') {
             // Storing in shallow (loose, no bags)
             const shallowId = document.getElementById('packaging_shallow_id').value;
             const shallowQty = parseFloat(document.getElementById('shallow_quantity').value);
-            
+
             if (!shallowId || !shallowQty || shallowQty <= 0) {
                 messageEl.className = 'message error';
                 messageEl.textContent = 'Please select a shallow and enter quantity';
                 return;
             }
-            
+
             packagingData.shallow_id = parseInt(shallowId);
             packagingData.bag_size_kg = 0; // No bags
             packagingData.number_of_bags = 0; // No bags
@@ -2307,13 +2307,13 @@ async function submitPackaging() {
             const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
             const numBags = parseInt(document.getElementById('packaging_num_bags').value);
             const godownId = document.getElementById('packaging_godown_id').value;
-            
+
             if (!bagSize || !numBags || !godownId) {
                 messageEl.className = 'message error';
                 messageEl.textContent = 'Please fill bag size, number of bags, and godown';
                 return;
             }
-            
+
             packagingData.shallow_id = null; // Not using shallow
             packagingData.bag_size_kg = bagSize;
             packagingData.number_of_bags = numBags;
@@ -2326,13 +2326,13 @@ async function submitPackaging() {
         const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
         const numBags = parseInt(document.getElementById('packaging_num_bags').value);
         const godownId = document.getElementById('packaging_godown_id').value;
-        
+
         if (!shallowId || !bagSize || !numBags || !godownId) {
             messageEl.className = 'message error';
             messageEl.textContent = 'Please select shallow, bag size, number of bags, and godown';
             return;
         }
-        
+
         packagingData.shallow_id = parseInt(shallowId);
         packagingData.bag_size_kg = bagSize;
         packagingData.number_of_bags = numBags;
@@ -2343,29 +2343,29 @@ async function submitPackaging() {
         const bagSize = parseFloat(document.getElementById('packaging_bag_size').value);
         const numBags = parseInt(document.getElementById('packaging_num_bags').value);
         const godownId = document.getElementById('packaging_godown_id').value;
-        
+
         if (!bagSize || !numBags || !godownId) {
             messageEl.className = 'message error';
             messageEl.textContent = 'Please fill bag size, number of bags, and godown';
             return;
         }
-        
+
         packagingData.shallow_id = null;
         packagingData.bag_size_kg = bagSize;
         packagingData.number_of_bags = numBags;
         packagingData.total_kg_packed = (bagSize * numBags) / 1000; // Convert kg to tons
         packagingData.godown_id = parseInt(godownId);
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/api/packaging`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(packagingData)
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             messageEl.className = 'message success';
             const source = packagingSource.value === 'order' ? 'grinding output' : 'shallow';
@@ -2374,7 +2374,7 @@ async function submitPackaging() {
                 ? `in ${packagingData.number_of_bags} bags` 
                 : 'loose';
             messageEl.textContent = `Successfully packaged ${result.data.total_kg_packed} tons of ${productType} from ${source} ${details} to ${destination}!`;
-            
+
             // Reset form
             if (document.getElementById('packaging_product_type')) {
                 document.getElementById('packaging_product_type').value = '';
@@ -2398,14 +2398,14 @@ async function submitPackaging() {
                 document.getElementById('bag-packaging-section').style.display = 'none';
             }
             document.querySelectorAll('input[name="maida_storage_method"]').forEach(radio => radio.checked = false);
-            
+
             // Reload packaging records if from order
             if (packagingSource.value === 'order') {
                 setTimeout(() => {
                     document.getElementById('packaging_order_id').dispatchEvent(new Event('change'));
                 }, 500);
             }
-            
+
             loadShallows();
             loadGodowns();
         } else {
