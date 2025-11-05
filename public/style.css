@@ -594,6 +594,46 @@ body {
     font-weight: 600;
 }
 
+.item-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-edit, .btn-delete {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-edit {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.btn-edit:hover {
+    background-color: #2563eb;
+}
+
+.btn-delete {
+    background-color: #ef4444;
+    color: white;
+}
+
+.btn-delete:hover {
+    background-color: #dc2626;
+}
+
+.data-table .btn-edit,
+.data-table .btn-delete {
+    padding: 6px 12px;
+    font-size: 13px;
+    margin: 0 3px;
+}
+
 .dynamic-bin-item {
     display: flex;
     align-items: center;
@@ -688,7 +728,7 @@ body {
     .sidebar {
         width: 240px;
     }
-    
+
     .tab-btn {
         font-size: 0.9em;
         padding: 12px 16px;

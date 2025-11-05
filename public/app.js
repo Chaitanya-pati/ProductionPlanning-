@@ -455,6 +455,10 @@ async function loadFinishedGoods() {
                         <p><strong>Product:</strong> ${product.product_name}</p>
                         <p><strong>Initial:</strong> ${product.initial_name}</p>
                     </div>
+                    <div class="item-actions">
+                        <button class="btn-edit" onclick="editFinishedGood(${product.id}, '${product.product_name}', '${product.initial_name}')">Edit</button>
+                        <button class="btn-delete" onclick="deleteFinishedGood(${product.id}, '${product.product_name}')">Delete</button>
+                    </div>
                 </div>
             `).join('');
         } else {
@@ -462,6 +466,56 @@ async function loadFinishedGoods() {
         }
     } catch (error) {
         console.error('Error loading finished goods:', error);
+    }
+}
+
+async function editFinishedGood(id, productName, initialName) {
+    const newProductName = prompt('Edit Product Name:', productName);
+    const newInitialName = prompt('Edit Initial Name:', initialName);
+    
+    if (!newProductName || !newInitialName) {
+        alert('Both fields are required');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/finished-goods/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_name: newProductName, initial_name: newInitialName })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Finished good updated successfully!');
+            loadFinishedGoods();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function deleteFinishedGood(id, productName) {
+    if (!confirm(`Delete "${productName}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/finished-goods/${id}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Finished good deleted successfully!');
+            loadFinishedGoods();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
     }
 }
 
@@ -479,6 +533,10 @@ async function loadRawProducts() {
                     <div class="item-info">
                         <p><strong>Product:</strong> ${product.product_name}</p>
                     </div>
+                    <div class="item-actions">
+                        <button class="btn-edit" onclick="editRawProduct(${product.id}, '${product.product_name}')">Edit</button>
+                        <button class="btn-delete" onclick="deleteRawProduct(${product.id}, '${product.product_name}')">Delete</button>
+                    </div>
                 </div>
             `).join('');
         } else {
@@ -486,6 +544,55 @@ async function loadRawProducts() {
         }
     } catch (error) {
         console.error('Error loading raw products:', error);
+    }
+}
+
+async function editRawProduct(id, productName) {
+    const newProductName = prompt('Edit Product Name:', productName);
+    
+    if (!newProductName) {
+        alert('Product name is required');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/raw-products/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ product_name: newProductName })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Raw product updated successfully!');
+            loadRawProducts();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function deleteRawProduct(id, productName) {
+    if (!confirm(`Delete "${productName}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/raw-products/${id}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Raw product deleted successfully!');
+            loadRawProducts();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
     }
 }
 
@@ -587,6 +694,10 @@ async function loadBins() {
                         <p><strong>Bin:</strong> ${bin.bin_name} (${bin.identity_number})</p>
                         <p><strong>Type:</strong> ${bin.bin_type} | <strong>Capacity:</strong> ${bin.capacity} tons | <strong>Current:</strong> ${bin.current_quantity} tons</p>
                     </div>
+                    <div class="item-actions">
+                        <button class="btn-edit" onclick="editBin(${bin.id})">Edit</button>
+                        <button class="btn-delete" onclick="deleteBin(${bin.id}, '${bin.bin_name}')">Delete</button>
+                    </div>
                 </div>
             `).join('');
         } else {
@@ -594,6 +705,76 @@ async function loadBins() {
         }
     } catch (error) {
         console.error('Error loading bins:', error);
+    }
+}
+
+async function editBin(id) {
+    try {
+        const response = await fetch(`${API_URL}/api/bins/${id}`);
+        const result = await response.json();
+        
+        if (!result.success) {
+            alert('Error loading bin data');
+            return;
+        }
+        
+        const bin = result.data;
+        
+        const newBinName = prompt('Edit Bin Name:', bin.bin_name);
+        if (!newBinName) return;
+        
+        const newIdentityNumber = prompt('Edit Identity Number:', bin.identity_number);
+        if (!newIdentityNumber) return;
+        
+        const newCapacity = prompt('Edit Capacity (tons):', bin.capacity);
+        if (!newCapacity) return;
+        
+        const newCurrentQuantity = prompt('Edit Current Quantity (tons):', bin.current_quantity);
+        if (newCurrentQuantity === null) return;
+
+        const updateResponse = await fetch(`${API_URL}/api/bins/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                bin_name: newBinName,
+                bin_type: bin.bin_type,
+                capacity: parseFloat(newCapacity),
+                current_quantity: parseFloat(newCurrentQuantity),
+                identity_number: newIdentityNumber
+            })
+        });
+
+        const updateResult = await updateResponse.json();
+        if (updateResult.success) {
+            alert('Bin updated successfully!');
+            loadBins();
+        } else {
+            alert(`Error: ${updateResult.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function deleteBin(id, binName) {
+    if (!confirm(`Delete "${binName}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/bins/${id}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Bin deleted successfully!');
+            loadBins();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
     }
 }
 
@@ -1890,7 +2071,7 @@ async function loadGodowns() {
                 return;
             }
 
-            list.innerHTML = '<table class="data-table"><thead><tr><th>Godown Name</th><th>Code</th><th>Capacity</th><th>Current Qty</th><th>Available</th><th>Location</th></tr></thead><tbody>' +
+            list.innerHTML = '<table class="data-table"><thead><tr><th>Godown Name</th><th>Code</th><th>Capacity</th><th>Current Qty</th><th>Available</th><th>Location</th><th>Actions</th></tr></thead><tbody>' +
                 result.data.map(g => `
                     <tr>
                         <td>${g.godown_name}</td>
@@ -1899,11 +2080,83 @@ async function loadGodowns() {
                         <td>${g.current_quantity} tons</td>
                         <td>${(g.capacity - g.current_quantity).toFixed(2)} tons</td>
                         <td>${g.location || '-'}</td>
+                        <td>
+                            <button class="btn-edit" onclick="editGodown(${g.id})">Edit</button>
+                            <button class="btn-delete" onclick="deleteGodown(${g.id}, '${g.godown_name}')">Delete</button>
+                        </td>
                     </tr>
                 `).join('') + '</tbody></table>';
         }
     } catch (error) {
         console.error('Error loading godowns:', error);
+    }
+}
+
+async function editGodown(id) {
+    try {
+        const response = await fetch(`${API_URL}/api/godowns/${id}`);
+        const result = await response.json();
+        
+        if (!result.success) {
+            alert('Error loading godown data');
+            return;
+        }
+        
+        const godown = result.data;
+        
+        const newGodownName = prompt('Edit Godown Name:', godown.godown_name);
+        if (!newGodownName) return;
+        
+        const newGodownCode = prompt('Edit Godown Code:', godown.godown_code);
+        if (!newGodownCode) return;
+        
+        const newCapacity = prompt('Edit Capacity (tons):', godown.capacity);
+        if (!newCapacity) return;
+        
+        const newLocation = prompt('Edit Location:', godown.location || '');
+
+        const updateResponse = await fetch(`${API_URL}/api/godowns/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                godown_name: newGodownName,
+                godown_code: newGodownCode,
+                capacity: parseFloat(newCapacity),
+                location: newLocation
+            })
+        });
+
+        const updateResult = await updateResponse.json();
+        if (updateResult.success) {
+            alert('Godown updated successfully!');
+            loadGodowns();
+        } else {
+            alert(`Error: ${updateResult.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function deleteGodown(id, godownName) {
+    if (!confirm(`Delete "${godownName}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/godowns/${id}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Godown deleted successfully!');
+            loadGodowns();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
     }
 }
 
@@ -1956,7 +2209,7 @@ async function loadShallows() {
                 return;
             }
 
-            list.innerHTML = '<table class="data-table"><thead><tr><th>Shallow Name</th><th>Code</th><th>Capacity</th><th>Current Qty</th><th>Available</th></tr></thead><tbody>' +
+            list.innerHTML = '<table class="data-table"><thead><tr><th>Shallow Name</th><th>Code</th><th>Capacity</th><th>Current Qty</th><th>Available</th><th>Actions</th></tr></thead><tbody>' +
                 result.data.map(s => `
                     <tr>
                         <td>${s.shallow_name}</td>
@@ -1964,6 +2217,10 @@ async function loadShallows() {
                         <td>${s.capacity} tons</td>
                         <td>${s.current_quantity} tons</td>
                         <td>${(s.capacity - s.current_quantity).toFixed(2)} tons</td>
+                        <td>
+                            <button class="btn-edit" onclick="editShallow(${s.id})">Edit</button>
+                            <button class="btn-delete" onclick="deleteShallow(${s.id}, '${s.shallow_name}')">Delete</button>
+                        </td>
                     </tr>
                 `).join('') + '</tbody></table>';
 
@@ -1990,6 +2247,71 @@ async function loadShallows() {
         }
     } catch (error) {
         console.error('Error loading shallows:', error);
+    }
+}
+
+async function editShallow(id) {
+    try {
+        const response = await fetch(`${API_URL}/api/shallows/${id}`);
+        const result = await response.json();
+        
+        if (!result.success) {
+            alert('Error loading shallow data');
+            return;
+        }
+        
+        const shallow = result.data;
+        
+        const newShallowName = prompt('Edit Shallow Name:', shallow.shallow_name);
+        if (!newShallowName) return;
+        
+        const newShallowCode = prompt('Edit Shallow Code:', shallow.shallow_code);
+        if (!newShallowCode) return;
+        
+        const newCapacity = prompt('Edit Capacity (tons):', shallow.capacity);
+        if (!newCapacity) return;
+
+        const updateResponse = await fetch(`${API_URL}/api/shallows/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                shallow_name: newShallowName,
+                shallow_code: newShallowCode,
+                capacity: parseFloat(newCapacity)
+            })
+        });
+
+        const updateResult = await updateResponse.json();
+        if (updateResult.success) {
+            alert('Shallow updated successfully!');
+            loadShallows();
+        } else {
+            alert(`Error: ${updateResult.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function deleteShallow(id, shallowName) {
+    if (!confirm(`Delete "${shallowName}"? This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/shallows/${id}`, {
+            method: 'DELETE'
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            alert('Shallow deleted successfully!');
+            loadShallows();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
     }
 }
 

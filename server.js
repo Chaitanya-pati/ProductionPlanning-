@@ -231,6 +231,59 @@ app.post('/api/finished-goods', (req, res) => {
   }
 });
 
+app.get('/api/finished-goods/:id', (req, res) => {
+  try {
+    const product = db.prepare('SELECT * FROM finished_goods WHERE id = ?').get(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, error: 'Finished good not found' });
+    }
+    res.json({ success: true, data: product });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/finished-goods/:id', (req, res) => {
+  try {
+    const { product_name, initial_name } = req.body;
+    
+    if (!product_name || !initial_name) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const stmt = db.prepare(`
+      UPDATE finished_goods 
+      SET product_name = ?, initial_name = ?
+      WHERE id = ?
+    `);
+    
+    const result = stmt.run(product_name, initial_name, req.params.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'Finished good not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/finished-goods/:id', (req, res) => {
+  try {
+    const stmt = db.prepare('DELETE FROM finished_goods WHERE id = ?');
+    const result = stmt.run(req.params.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'Finished good not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // RAW PRODUCTS APIs
 app.get('/api/raw-products', (req, res) => {
   try {
@@ -260,6 +313,59 @@ app.post('/api/raw-products', (req, res) => {
       success: true, 
       data: { id: result.lastInsertRowid, product_name }
     });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/raw-products/:id', (req, res) => {
+  try {
+    const product = db.prepare('SELECT * FROM raw_products WHERE id = ?').get(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, error: 'Raw product not found' });
+    }
+    res.json({ success: true, data: product });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.put('/api/raw-products/:id', (req, res) => {
+  try {
+    const { product_name } = req.body;
+    
+    if (!product_name) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const stmt = db.prepare(`
+      UPDATE raw_products 
+      SET product_name = ?
+      WHERE id = ?
+    `);
+    
+    const result = stmt.run(product_name, req.params.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'Raw product not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/raw-products/:id', (req, res) => {
+  try {
+    const stmt = db.prepare('DELETE FROM raw_products WHERE id = ?');
+    const result = stmt.run(req.params.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'Raw product not found' });
+    }
+    
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -299,6 +405,18 @@ app.post('/api/bins', (req, res) => {
   }
 });
 
+app.get('/api/bins/:id', (req, res) => {
+  try {
+    const bin = db.prepare('SELECT * FROM bins WHERE id = ?').get(req.params.id);
+    if (!bin) {
+      return res.status(404).json({ success: false, error: 'Bin not found' });
+    }
+    res.json({ success: true, data: bin });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.put('/api/bins/:id', (req, res) => {
   try {
     const { bin_name, bin_type, capacity, current_quantity, identity_number } = req.body;
@@ -323,6 +441,21 @@ app.put('/api/bins/:id', (req, res) => {
       success: true, 
       data: { id: req.params.id, bin_name, bin_type, capacity, current_quantity: current_quantity || 0, identity_number }
     });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/bins/:id', (req, res) => {
+  try {
+    const stmt = db.prepare('DELETE FROM bins WHERE id = ?');
+    const result = stmt.run(req.params.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'Bin not found' });
+    }
+    
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -1259,6 +1392,18 @@ app.post('/api/godowns', (req, res) => {
   }
 });
 
+app.get('/api/godowns/:id', (req, res) => {
+  try {
+    const godown = db.prepare('SELECT * FROM finished_goods_godowns WHERE id = ?').get(req.params.id);
+    if (!godown) {
+      return res.status(404).json({ success: false, error: 'Godown not found' });
+    }
+    res.json({ success: true, data: godown });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.put('/api/godowns/:id', (req, res) => {
   try {
     const { godown_name, godown_code, capacity, location } = req.body;
@@ -1273,7 +1418,26 @@ app.put('/api/godowns/:id', (req, res) => {
       WHERE id = ?
     `);
     
-    stmt.run(godown_name, godown_code, capacity, location || '', req.params.id);
+    const result = stmt.run(godown_name, godown_code, capacity, location || '', req.params.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'Godown not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/godowns/:id', (req, res) => {
+  try {
+    const stmt = db.prepare('DELETE FROM finished_goods_godowns WHERE id = ?');
+    const result = stmt.run(req.params.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'Godown not found' });
+    }
     
     res.json({ success: true });
   } catch (error) {
@@ -1315,6 +1479,18 @@ app.post('/api/shallows', (req, res) => {
   }
 });
 
+app.get('/api/shallows/:id', (req, res) => {
+  try {
+    const shallow = db.prepare('SELECT * FROM maida_shallows WHERE id = ?').get(req.params.id);
+    if (!shallow) {
+      return res.status(404).json({ success: false, error: 'Shallow not found' });
+    }
+    res.json({ success: true, data: shallow });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.put('/api/shallows/:id', (req, res) => {
   try {
     const { shallow_name, shallow_code, capacity } = req.body;
@@ -1329,7 +1505,26 @@ app.put('/api/shallows/:id', (req, res) => {
       WHERE id = ?
     `);
     
-    stmt.run(shallow_name, shallow_code, capacity, req.params.id);
+    const result = stmt.run(shallow_name, shallow_code, capacity, req.params.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'Shallow not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.delete('/api/shallows/:id', (req, res) => {
+  try {
+    const stmt = db.prepare('DELETE FROM maida_shallows WHERE id = ?');
+    const result = stmt.run(req.params.id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ success: false, error: 'Shallow not found' });
+    }
     
     res.json({ success: true });
   } catch (error) {
