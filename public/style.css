@@ -32,10 +32,10 @@ body {
 .content-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 30px 50px;
-    margin: 30px 30px 0 30px;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    padding: 20px 30px;
+    margin: 20px 20px 0 20px;
+    border-radius: 12px;
+    box-shadow: 0 3px 15px rgba(102, 126, 234, 0.3);
     position: relative;
     overflow: hidden;
 }
@@ -180,12 +180,12 @@ body {
 
 .tab-content {
     display: none;
-    padding: 40px 50px;
+    padding: 25px 30px;
     animation: slideIn 0.4s ease-out;
     background: #ffffff;
-    margin: 30px;
-    border-radius: 16px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    margin: 20px;
+    border-radius: 12px;
+    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.08);
 }
 
 @keyframes slideIn {
@@ -212,25 +212,25 @@ body {
 }
 
 .form-group {
-    margin-bottom: 24px;
+    margin-bottom: 16px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 10px;
+    margin-bottom: 6px;
     font-weight: 600;
     color: #2d3748;
-    font-size: 0.95em;
+    font-size: 0.9em;
     letter-spacing: 0.2px;
 }
 
 .form-group input,
 .form-group select {
     width: 100%;
-    padding: 14px 16px;
-    border: 2px solid #e2e8f0;
-    border-radius: 10px;
-    font-size: 1em;
+    padding: 10px 12px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.95em;
     transition: all 0.3s ease;
     background: white;
     color: #2d3748;
@@ -250,14 +250,14 @@ body {
 .btn-primary {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 16px 40px;
+    padding: 11px 28px;
     border: none;
-    border-radius: 10px;
-    font-size: 1.05em;
+    border-radius: 8px;
+    font-size: 0.95em;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 3px 10px rgba(102, 126, 234, 0.3);
     letter-spacing: 0.3px;
 }
 
@@ -271,12 +271,13 @@ body {
 }
 
 .message {
-    margin-top: 24px;
-    padding: 16px 20px;
-    border-radius: 10px;
+    margin-top: 15px;
+    padding: 12px 16px;
+    border-radius: 8px;
     display: none;
     font-weight: 500;
     animation: slideDown 0.3s ease-out;
+    font-size: 0.95em;
 }
 
 @keyframes slideDown {
@@ -308,20 +309,20 @@ body {
 
 .section {
     background: #f8f9fa;
-    padding: 30px;
-    border-radius: 12px;
-    margin-bottom: 30px;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
     border: 1px solid #e9ecef;
 }
 
 .section h3 {
     color: #667eea;
-    margin-bottom: 20px;
-    font-size: 1.4em;
+    margin-bottom: 15px;
+    font-size: 1.2em;
     font-weight: 700;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
 }
 
 .section h3::before {
@@ -335,31 +336,31 @@ body {
 .hint {
     color: #718096;
     font-style: italic;
-    margin-bottom: 20px;
-    font-size: 0.9em;
-    padding: 12px 16px;
+    margin-bottom: 12px;
+    font-size: 0.85em;
+    padding: 8px 12px;
     background: white;
-    border-radius: 8px;
+    border-radius: 6px;
     border-left: 3px solid #667eea;
 }
 
 .blend-grid,
 .dist-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
 }
 
 .blend-item,
 .dist-item {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     background: white;
-    padding: 16px;
-    border-radius: 10px;
-    border: 2px solid #e2e8f0;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
     transition: all 0.3s ease;
 }
 
@@ -445,12 +446,12 @@ body {
 
 .order-card {
     background: white;
-    border-left: 5px solid #667eea;
-    padding: 25px;
-    margin-bottom: 20px;
-    border-radius: 12px;
+    border-left: 4px solid #667eea;
+    padding: 18px;
+    margin-bottom: 15px;
+    border-radius: 10px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
 }
 
 .order-card:hover {
@@ -546,13 +547,13 @@ body {
 
 .form-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
     align-items: end;
 }
 
 .form-row .btn-primary {
-    padding: 14px 32px;
+    padding: 10px 24px;
 }
 
 .products-list,
@@ -596,12 +597,12 @@ body {
 .dynamic-bin-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 18px;
+    gap: 10px;
+    margin-bottom: 12px;
     background: white;
-    padding: 16px;
-    border-radius: 10px;
-    border: 2px solid #e2e8f0;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1.5px solid #e2e8f0;
     transition: all 0.3s ease;
 }
 
@@ -823,9 +824,9 @@ body {
 .sequence-bin-card {
     display: flex;
     align-items: flex-start;
-    padding: 20px;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
+    padding: 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
     background: #ffffff;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
@@ -928,13 +929,13 @@ body {
 
 .destination-transfer-item {
     background: white;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 25px;
-    margin-bottom: 25px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 15px;
     display: grid;
-    grid-template-columns: 2fr 1fr 150px;
-    gap: 25px;
+    grid-template-columns: 2fr 1fr 140px;
+    gap: 18px;
     align-items: center;
     transition: all 0.3s ease;
 }
@@ -1009,16 +1010,16 @@ body {
 .btn-start {
     background: linear-gradient(135deg, #10b981 0%, #059669 100%);
     color: white;
-    padding: 14px 24px;
+    padding: 10px 20px;
     border: none;
     border-radius: 8px;
-    font-size: 1em;
-    font-weight: 700;
+    font-size: 0.9em;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
 }
 
 .btn-start:hover:not(:disabled) {
@@ -1034,16 +1035,16 @@ body {
 .btn-stop {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
     color: white;
-    padding: 14px 24px;
+    padding: 10px 20px;
     border: none;
     border-radius: 8px;
-    font-size: 1em;
-    font-weight: 700;
+    font-size: 0.9em;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.4px;
 }
 
 .btn-stop:hover:not(:disabled) {
@@ -1077,42 +1078,42 @@ body {
 
 .hourly-report-card {
     background: white;
-    border: 2px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 25px;
-    margin-bottom: 20px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 15px;
 }
 
 .hourly-report-card h4 {
     color: #667eea;
-    margin-bottom: 15px;
-    font-size: 1.2em;
+    margin-bottom: 12px;
+    font-size: 1.1em;
 }
 
 .report-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-bottom: 15px;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
 }
 
 .report-input-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .report-input-group label {
     font-weight: 600;
     color: #4a5568;
-    font-size: 0.9em;
+    font-size: 0.85em;
 }
 
 .report-input-group input {
-    padding: 10px 12px;
-    border: 2px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 0.95em;
+    padding: 8px 10px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 7px;
+    font-size: 0.9em;
 }
 
 .report-input-group input:focus {
@@ -1230,12 +1231,12 @@ body {
 
 .timeline-stage {
     position: relative;
-    padding: 25px 30px;
-    margin-bottom: 30px;
+    padding: 18px 22px;
+    margin-bottom: 20px;
     background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border-left: 5px solid #3b82f6;
+    border-radius: 10px;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #3b82f6;
     transition: all 0.3s ease;
 }
 
