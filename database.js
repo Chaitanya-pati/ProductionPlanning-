@@ -303,6 +303,13 @@ try {
   // Columns already exist
 }
 
+try {
+  db.exec(`ALTER TABLE sequential_transfer_bins ADD COLUMN transfer_in_at DATETIME`);
+  db.exec(`ALTER TABLE sequential_transfer_bins ADD COLUMN transfer_out_at DATETIME`);
+} catch (e) {
+  // Columns already exist
+}
+
 // Migration: Rename plan_name to description in production_plans
 try {
   const planNameExists = db.prepare(`

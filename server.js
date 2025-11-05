@@ -841,6 +841,15 @@ app.post('/api/transfers/sequential/start', (req, res) => {
     if (!sourceBin) {
       return res.status(404).json({ success: false, error: 'Source bin not found' });
     }
+    
+    if (sourceBin.bin_type === '24HR') {
+      const updateSourceBinTransfer = db.prepare(`
+        UPDATE destination_bin_transfers 
+        SET transfer_out_at = CURRENT_TIMESTAMP 
+        WHERE destination_bin_id = ? AND transfer_out_at IS NULL
+      `);
+      updateSourceBinTransfer.run(source_bin_id);
+    }
 
     // Create sequential transfer job with started_at timer
     const insertJob = db.prepare(`
@@ -886,8 +895,8 @@ app.post('/api/transfers/sequential/stop', (req, res) => {
     const distributionDetails = [];
 
     const insertDestinationBin = db.prepare(`
-      INSERT INTO sequential_transfer_bins (sequential_job_id, destination_bin_id, sequence_order, status, quantity_transferred)
-      VALUES (?, ?, ?, 'COMPLETED', ?)
+      INSERT INTO sequential_transfer_bins (sequential_job_id, destination_bin_id, sequence_order, status, quantity_transferred, transfer_in_at)
+      VALUES (?, ?, ?, 'COMPLETED', ?, CURRENT_TIMESTAMP)
     `);
 
     const updateBin = db.prepare('UPDATE bins SET current_quantity = ? WHERE id = ?');
@@ -1195,6 +1204,12 @@ app.post('/api/grinding/start', (req, res) => {
     const jobResult = insertJob.run(order_id);
     const grindingJobId = jobResult.lastInsertRowid;
     
+    const updateSequentialBinsTransferOut = db.prepare(`
+      UPDATE sequential_transfer_bins 
+      SET transfer_out_at = CURRENT_TIMESTAMP 
+      WHERE destination_bin_id = ? AND transfer_out_at IS NULL
+    `);
+    
     const insertBin = db.prepare(`
       INSERT INTO grinding_source_bins (grinding_job_id, bin_id, bin_sequence_order, status, outgoing_moisture, water_added, transfer_out_at)
       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -1205,6 +1220,8 @@ app.post('/api/grinding/start', (req, res) => {
       const moistureData = bin_moisture_data && bin_moisture_data[binId];
       const outgoingMoisture = moistureData ? moistureData.outgoing_moisture : null;
       const waterAdded = moistureData ? moistureData.water_added : null;
+      
+      updateSequentialBinsTransferOut.run(binId);
       
       insertBin.run(grindingJobId, binId, index + 1, status, outgoingMoisture, waterAdded);
     });
