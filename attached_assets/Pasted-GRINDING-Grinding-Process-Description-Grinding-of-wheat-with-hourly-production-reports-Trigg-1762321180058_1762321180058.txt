@@ -1,0 +1,149 @@
+GRINDING - Grinding Process
+Description: Grinding of wheat with hourly production reports.
+
+Trigger:
+
+User navigates to Grinding module
+
+System auto-detects order from filled 12HR bins
+
+User clicks "START GRINDING"
+
+Auto-Link Logic:
+
+text
+1. User goes to Grinding module
+2. System queries: Which 12HR bins have quantity > 0?
+3. System finds which order filled those bins
+4. Auto-displays: "Order: ORD-2025-001 (Read-Only)"
+5. User cannot select different order
+6. Everything linked to that order_id
+Database Operations:
+
+CREATE grinding_job:
+
+order_id: auto-linked from filled bins
+
+grinding_status: 'STARTED'
+
+grinding_start_time: NOW()
+
+grinding_duration_hours: will be calculates when the user clicks on stop grinding 
+
+machine_id: 'GRINDING-001'
+
+CREATE grinding_source_bins (for each 12HR bin with qty):
+
+grinding_job_id: links to job
+
+bin_id: 12HR Bin 301, 302, 303, 304
+
+bin_sequence_order: 1, 2, 3, 4
+
+status: First = 'IN_USE', Others = 'PENDING'
+
+AUTO-GENERATE hourly_reports:
+
+Give user option to add the rows as hourly reports where user can select start and end timing 
+
+Each with time range (08:40-09:00, 09:00-10:00, etc.)
+
+status: 'PENDING' (not submitted)
+
+UPDATE orders:
+
+production_stage = 'GRINDING_IN_PROGRESS'
+
+Hourly Report Submission:
+
+text
+User enters percentages:
+├─ Maida: 10 tons
+├─ Suji: 5 tons
+├─ Chakki Ata: 2 tons
+├─ Tandoori: 0%
+└─ Main Total: 
+
+System auto-calculates:
+├─ Bran: 25% (100% - 75%)
+└─ All in TONS (not kg)
+
+Example (assuming 72.5 tons in current bin):
+├─ Maida: 35% of 72.5 = 25.375 TONS
+├─ Suji: 20% of 72.5 = 14.5 TONS
+├─ Chakki: 20% of 72.5 = 14.5 TONS
+├─ Tandoori: 0% of 72.5 = 0 TONS
+├─ Main Total: 54.375 TONS (75%)
+├─ Bran: 18.125 TONS (25%)
+└─ Grand Total: 72.5 TONS (100%)
+
+Validation:
+├─ Bran must be 23-25% (ideal 25%) just highlight if it not in range don't prevent user from doing any operations
+├─ If outside range: Highlight it show warning
+├─ Main products must total ~75 to 77
+└─ All percentages must sum to 100%
+Sequential Bin Usage:
+
+text
+Hour 1-2 (08:40-10:00):
+├─ Grinding from 12HR Bin 301
+├─ Current Status: IN_USE
+└─ Reports 1-2 submitted
+
+Hour 3 (10:00-11:00):
+├─ Check: Is Bin 301 depleted?
+├─ YES → Auto-advance to Bin 302
+├─ Update: 301 = COMPLETED, 302 = IN_USE
+└─ Report 3 from new bin
+
+Hour 4-8:
+├─ Continue with 302, then 303, then 304
+├─ Auto-advance when each depletes
+└─ Submit hourly reports sequentially
+Data Entry Control:
+
+text
+CAN SUBMIT while: grinding_status = 'STARTED' or 'IN_PROGRESS'
+├─ Form ENABLED
+├─ Submit button CLICKABLE
+└─ Reports saved
+
+CANNOT SUBMIT when: grinding_status = 'STOPPED' or 'COMPLETED'
+├─ Form DISABLED
+├─ Submit button GRAYED OUT
+├─ Show message: "Grinding stopped. No data entry allowed."
+Production Summary (From Reports):
+
+text
+TOTAL PRODUCTION (Sum of all hours):
+├─ Maida: 75.50 tons (35%)
+├─ Suji: 43.20 tons (20%)
+├─ Chakki: 43.20 tons (20%)
+├─ Tandoori: 0.00 tons (0%)
+├─ Main Products: 161.90 tons (75%)
+├─ Bran: 53.96 tons (25%)
+└─ TOTAL OUTPUT: 215.86 tons
+
+AVERAGE PERFORMANCE:
+├─ Main Products %: 75.0%
+├─ Bran %: 25.0%
+
+
+HOURLY BREAKDOWN (Expandable):
+├─ Hour 1 (08:40-09:00): Maida 25.17t, Suji 14.33t, Bran 8.50t (✓ Submitted)
+├─ Hour 2 (09:00-10:00): Maida 25.17t, Suji 14.33t, Bran 8.50t (✓ Submitted)
+...
+└─ Hour 7 (14:00-15:00): Maida 23.46t, Suji 13.40t, Bran 7.88t (✓ Submitted)
+Stop Grinding:
+
+User clicks "Stop Grinding"
+
+grinding_status changes to 'STOPPED'
+
+grinding_end_time recorded
+
+Data entry forms disabled
+
+UPDATE orders: production_stage = 'GRINDING_COMPLETED'
+
+Next Stage: Packaging

@@ -107,6 +107,75 @@ db.exec(`
     FOREIGN KEY (plan_id) REFERENCES production_plans(id),
     FOREIGN KEY (destination_bin_id) REFERENCES bins(id)
   );
+
+  CREATE TABLE IF NOT EXISTS sequential_transfer_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    source_bin_id INTEGER NOT NULL,
+    transfer_quantity REAL NOT NULL,
+    status TEXT DEFAULT 'READY',
+    started_at DATETIME,
+    stopped_at DATETIME,
+    FOREIGN KEY (order_id) REFERENCES orders(id),
+    FOREIGN KEY (source_bin_id) REFERENCES bins(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS sequential_transfer_bins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sequential_job_id INTEGER NOT NULL,
+    destination_bin_id INTEGER NOT NULL,
+    sequence_order INTEGER NOT NULL,
+    status TEXT DEFAULT 'PENDING',
+    quantity_transferred REAL DEFAULT 0,
+    FOREIGN KEY (sequential_job_id) REFERENCES sequential_transfer_jobs(id),
+    FOREIGN KEY (destination_bin_id) REFERENCES bins(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS grinding_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id INTEGER NOT NULL,
+    grinding_status TEXT DEFAULT 'READY',
+    grinding_start_time DATETIME,
+    grinding_end_time DATETIME,
+    grinding_duration_hours REAL,
+    machine_id TEXT DEFAULT 'GRINDING-001',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS grinding_source_bins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grinding_job_id INTEGER NOT NULL,
+    bin_id INTEGER NOT NULL,
+    bin_sequence_order INTEGER NOT NULL,
+    status TEXT DEFAULT 'PENDING',
+    FOREIGN KEY (grinding_job_id) REFERENCES grinding_jobs(id),
+    FOREIGN KEY (bin_id) REFERENCES bins(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS hourly_reports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grinding_job_id INTEGER NOT NULL,
+    report_number INTEGER NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    status TEXT DEFAULT 'PENDING',
+    maida_tons REAL DEFAULT 0,
+    suji_tons REAL DEFAULT 0,
+    chakki_ata_tons REAL DEFAULT 0,
+    tandoori_tons REAL DEFAULT 0,
+    main_total_tons REAL DEFAULT 0,
+    bran_tons REAL DEFAULT 0,
+    grand_total_tons REAL DEFAULT 0,
+    maida_percent REAL DEFAULT 0,
+    suji_percent REAL DEFAULT 0,
+    chakki_ata_percent REAL DEFAULT 0,
+    tandoori_percent REAL DEFAULT 0,
+    main_total_percent REAL DEFAULT 0,
+    bran_percent REAL DEFAULT 0,
+    submitted_at DATETIME,
+    FOREIGN KEY (grinding_job_id) REFERENCES grinding_jobs(id)
+  );
 `);
 
 try {

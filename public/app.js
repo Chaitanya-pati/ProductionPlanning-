@@ -20,6 +20,8 @@ function showTab(tabName, clickedElement) {
     
     if (tabName === 'orders') {
         loadOrders();
+    } else if (tabName === 'grinding') {
+        initGrindingModule();
     } else if (tabName === 'create-order') {
         loadProductsForOrder();
     } else if (tabName === 'create-plan') {
@@ -1033,27 +1035,42 @@ document.getElementById('custom_transfer_quantity').addEventListener('input', fu
     }
 });
 
-document.getElementById('execute-sequential-transfer').addEventListener('click', async function() {
-    const orderId = document.getElementById('sequential_order_id').value;
-    const sourceBinId = document.getElementById('sequential_source_bin').value;
-    
-    if (!orderId || !sourceBinId) {
-        alert('Please select both order and source bin');
-        return;
+// Updated 24->12 Transfer with checkbox change handling
+let selectedSequentialBins = [];
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('bin-checkbox')) {
+        updateSequentialPreview();
     }
-    
-    // Get all checkboxes in document order (preserves sequence)
+});
+
+function updateSequentialPreview() {
     const allCheckboxes = Array.from(document.querySelectorAll('.bin-checkbox'));
-    const selectedBins = allCheckboxes
+    selectedSequentialBins = allCheckboxes
         .filter(cb => cb.checked)
         .map(cb => parseInt(cb.value));
     
-    if (selectedBins.length === 0) {
-        alert('Please select at least one destination bin');
+    const previewEl = document.getElementById('sequential-transfer-preview');
+    const startBtn = document.getElementById('start-sequential-transfer');
+    
+    if (selectedSequentialBins.length > 0) {
+        previewEl.style.display = 'block';
+        startBtn.style.display = 'inline-block';
+    } else {
+        previewEl.style.display = 'none';
+        startBtn.style.display = 'none';
+    }
+}
+
+document.getElementById('start-sequential-transfer').addEventListener('click', async function() {
+    const orderId = document.getElementById('sequential_order_id').value;
+    const sourceBinId = document.getElementById('sequential_source_bin').value;
+    
+    if (!orderId || !sourceBinId || selectedSequentialBins.length === 0) {
+        alert('Please select order, source bin, and at least one destination bin');
         return;
     }
     
-    // Determine transfer quantity
     const quantityType = document.querySelector('input[name="transfer_quantity_type"]:checked').value;
     let transferQuantity = null;
     
@@ -1063,31 +1080,14 @@ document.getElementById('execute-sequential-transfer').addEventListener('click',
             alert('Please enter a valid custom quantity');
             return;
         }
-        
-        const detailsEl = document.getElementById('sequential-source-details');
-        const availableQty = parseFloat(detailsEl.getAttribute('data-available')) || 0;
-        
-        if (customQty > availableQty) {
-            alert(`Custom quantity (${customQty} tons) exceeds available quantity (${availableQty} tons)`);
-            return;
-        }
-        
         transferQuantity = customQty;
-    }
-    
-    const confirmMsg = transferQuantity 
-        ? `Execute sequential transfer of ${transferQuantity} tons to ${selectedBins.length} selected 12HR bin(s) in sequence order?`
-        : `Execute sequential transfer of the full quantity to ${selectedBins.length} selected 12HR bin(s) in sequence order?`;
-    
-    if (!confirm(confirmMsg)) {
-        return;
     }
     
     try {
         const requestBody = { 
             order_id: parseInt(orderId), 
             source_bin_id: parseInt(sourceBinId),
-            destination_sequence: selectedBins
+            destination_sequence: selectedSequentialBins
         };
         
         if (transferQuantity) {
@@ -1114,6 +1114,10 @@ document.getElementById('execute-sequential-transfer').addEventListener('click',
             }
             messageEl.textContent = detailMsg;
             messageEl.style.whiteSpace = 'pre-line';
+            
+            document.getElementById('start-sequential-transfer').style.display = 'none';
+            document.getElementById('stop-sequential-transfer').style.display = 'none';
+            
             setTimeout(() => {
                 showTab('orders', document.querySelector('[onclick*="orders"]'));
             }, 3000);
@@ -1127,5 +1131,342 @@ document.getElementById('execute-sequential-transfer').addEventListener('click',
         messageEl.textContent = `Error: ${error.message}`;
     }
 });
+
+// GRINDING MODULE
+
+async function initGrindingModule() {
+    try {
+        const binsResponse = await fetch(`${API_URL}/api/bins`);
+        const binsResult = await binsResponse.json();
+        
+        if (!binsResult.success) return;
+        
+        const filled12HRBins = binsResult.data.filter(b => b.bin_type === '12HR' && b.current_quantity > 0);
+        
+        if (filled12HRBins.length === 0) {
+            document.getElementById('grinding-order-info').innerHTML = '<p>No 12HR bins with wheat available. Complete 24→12 transfer first.</p>';
+            return;
+        }
+        
+        const ordersResponse = await fetch(`${API_URL}/api/orders`);
+        const ordersResult = await ordersResponse.json();
+        
+        if (!ordersResult.success) return;
+        
+        const completedOrders = ordersResult.data.filter(o => o.production_stage === 'TRANSFER_24_TO_12_COMPLETED');
+        
+        if (completedOrders.length > 0) {
+            const order = completedOrders[0];
+            
+            document.getElementById('grinding-order-info').innerHTML = `
+                <h4>Auto-Linked Order (Read-Only)</h4>
+                <p><strong>Order Number:</strong> ${order.order_number}</p>
+                <p><strong>Product:</strong> ${order.product_type}</p>
+                <p><strong>Total Quantity:</strong> ${order.quantity} tons</p>
+                <p><strong>Status:</strong> <span class="status-badge">${order.production_stage}</span></p>
+            `;
+            document.getElementById('grinding-order-info').style.display = 'block';
+            
+            document.getElementById('grinding-bin-info').innerHTML = `
+                <h4>Source 12HR Bins (Sequential Usage)</h4>
+                ${filled12HRBins.map((bin, index) => `
+                    <p><strong>Bin ${index + 1}:</strong> ${bin.bin_name} (${bin.identity_number}) - ${bin.current_quantity.toFixed(2)} tons</p>
+                `).join('')}
+            `;
+            
+            document.getElementById('grinding-controls').style.display = 'block';
+            
+            window.currentGrindingOrder = order;
+            window.current12HRBins = filled12HRBins;
+        }
+    } catch (error) {
+        console.error('Error initializing grinding:', error);
+    }
+}
+
+document.getElementById('start-grinding').addEventListener('click', async function() {
+    if (!window.currentGrindingOrder) {
+        alert('No order detected');
+        return;
+    }
+    
+    if (!confirm('Start grinding process? This will enable hourly report entry.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/grinding/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                order_id: window.currentGrindingOrder.id,
+                bin_ids: window.current12HRBins.map(b => b.id)
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('start-grinding').style.display = 'none';
+            document.getElementById('stop-grinding').style.display = 'inline-block';
+            document.getElementById('hourly-reports-section').style.display = 'block';
+            
+            window.currentGrindingJobId = result.data.grinding_job_id;
+            
+            const messageEl = document.getElementById('grinding-message');
+            messageEl.className = 'message success';
+            messageEl.textContent = 'Grinding started! Add hourly reports below.';
+            
+            loadHourlyReports();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+});
+
+document.getElementById('stop-grinding').addEventListener('click', async function() {
+    if (!confirm('Stop grinding process? No more hourly reports can be added after stopping.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/grinding/stop`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                grinding_job_id: window.currentGrindingJobId
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('stop-grinding').style.display = 'none';
+            document.getElementById('start-grinding').style.display = 'inline-block';
+            
+            const messageEl = document.getElementById('grinding-message');
+            messageEl.className = 'message success';
+            messageEl.textContent = `Grinding stopped. Duration: ${result.data.duration_hours.toFixed(2)} hours.`;
+            
+            loadProductionSummary();
+            
+            document.querySelectorAll('.hourly-report-card input').forEach(input => {
+                input.disabled = true;
+            });
+            document.querySelectorAll('.hourly-report-card button').forEach(btn => {
+                btn.disabled = true;
+            });
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+});
+
+function loadHourlyReports() {
+    const container = document.getElementById('hourly-reports-container');
+    container.innerHTML = `
+        <button onclick="addHourlyReportRow()" class="add-bin-btn">+ Add Hourly Report</button>
+        <div id="reports-list"></div>
+    `;
+}
+
+function addHourlyReportRow() {
+    const reportsList = document.getElementById('reports-list');
+    const reportNumber = reportsList.children.length + 1;
+    
+    const reportCard = document.createElement('div');
+    reportCard.className = 'hourly-report-card';
+    reportCard.id = `report-${reportNumber}`;
+    reportCard.innerHTML = `
+        <h4>Hour ${reportNumber}</h4>
+        <div class="report-grid">
+            <div class="report-input-group">
+                <label>Start Time:</label>
+                <input type="time" id="start_time_${reportNumber}" required>
+            </div>
+            <div class="report-input-group">
+                <label>End Time:</label>
+                <input type="time" id="end_time_${reportNumber}" required>
+            </div>
+        </div>
+        <div class="report-grid">
+            <div class="report-input-group">
+                <label>Maida (tons):</label>
+                <input type="number" step="0.01" id="maida_${reportNumber}" onchange="calculateReport(${reportNumber})">
+            </div>
+            <div class="report-input-group">
+                <label>Suji (tons):</label>
+                <input type="number" step="0.01" id="suji_${reportNumber}" onchange="calculateReport(${reportNumber})">
+            </div>
+            <div class="report-input-group">
+                <label>Chakki Ata (tons):</label>
+                <input type="number" step="0.01" id="chakki_${reportNumber}" onchange="calculateReport(${reportNumber})">
+            </div>
+            <div class="report-input-group">
+                <label>Tandoori (tons):</label>
+                <input type="number" step="0.01" id="tandoori_${reportNumber}" onchange="calculateReport(${reportNumber})">
+            </div>
+        </div>
+        <div class="report-grid">
+            <div class="report-input-group">
+                <label>Main Total (tons):</label>
+                <input type="number" step="0.01" id="main_total_${reportNumber}" readonly>
+            </div>
+            <div class="report-input-group">
+                <label>Bran (tons):</label>
+                <input type="number" step="0.01" id="bran_${reportNumber}" readonly>
+            </div>
+            <div class="report-input-group">
+                <label>Grand Total (tons):</label>
+                <input type="number" step="0.01" id="grand_total_${reportNumber}" readonly>
+            </div>
+        </div>
+        <div id="validation_${reportNumber}"></div>
+        <button onclick="submitHourlyReport(${reportNumber})" class="btn-primary" style="margin-top: 15px;">Submit Report ${reportNumber}</button>
+    `;
+    reportsList.appendChild(reportCard);
+}
+
+function calculateReport(reportNumber) {
+    const maida = parseFloat(document.getElementById(`maida_${reportNumber}`).value) || 0;
+    const suji = parseFloat(document.getElementById(`suji_${reportNumber}`).value) || 0;
+    const chakki = parseFloat(document.getElementById(`chakki_${reportNumber}`).value) || 0;
+    const tandoori = parseFloat(document.getElementById(`tandoori_${reportNumber}`).value) || 0;
+    
+    const mainTotal = maida + suji + chakki + tandoori;
+    const grandTotal = mainTotal / 0.75;
+    const bran = grandTotal - mainTotal;
+    
+    document.getElementById(`main_total_${reportNumber}`).value = mainTotal.toFixed(2);
+    document.getElementById(`bran_${reportNumber}`).value = bran.toFixed(2);
+    document.getElementById(`grand_total_${reportNumber}`).value = grandTotal.toFixed(2);
+    
+    const branPercent = (bran / grandTotal) * 100;
+    const validationEl = document.getElementById(`validation_${reportNumber}`);
+    
+    if (branPercent >= 23 && branPercent <= 25) {
+        validationEl.className = 'validation-success';
+        validationEl.textContent = `✓ Bran percentage: ${branPercent.toFixed(2)}% (Ideal range: 23-25%)`;
+    } else {
+        validationEl.className = 'validation-warning';
+        validationEl.textContent = `⚠ Bran percentage: ${branPercent.toFixed(2)}% (Outside ideal range: 23-25%)`;
+    }
+}
+
+async function submitHourlyReport(reportNumber) {
+    const startTime = document.getElementById(`start_time_${reportNumber}`).value;
+    const endTime = document.getElementById(`end_time_${reportNumber}`).value;
+    const maida = parseFloat(document.getElementById(`maida_${reportNumber}`).value) || 0;
+    const suji = parseFloat(document.getElementById(`suji_${reportNumber}`).value) || 0;
+    const chakki = parseFloat(document.getElementById(`chakki_${reportNumber}`).value) || 0;
+    const tandoori = parseFloat(document.getElementById(`tandoori_${reportNumber}`).value) || 0;
+    const mainTotal = parseFloat(document.getElementById(`main_total_${reportNumber}`).value) || 0;
+    const bran = parseFloat(document.getElementById(`bran_${reportNumber}`).value) || 0;
+    const grandTotal = parseFloat(document.getElementById(`grand_total_${reportNumber}`).value) || 0;
+    
+    if (!startTime || !endTime) {
+        alert('Please enter start and end times');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/api/grinding/report`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                grinding_job_id: window.currentGrindingJobId,
+                report_number: reportNumber,
+                start_time: startTime,
+                end_time: endTime,
+                maida_tons: maida,
+                suji_tons: suji,
+                chakki_ata_tons: chakki,
+                tandoori_tons: tandoori,
+                main_total_tons: mainTotal,
+                bran_tons: bran,
+                grand_total_tons: grandTotal
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const messageEl = document.getElementById('grinding-message');
+            messageEl.className = 'message success';
+            messageEl.textContent = `Report ${reportNumber} submitted successfully!`;
+            
+            document.querySelectorAll(`#report-${reportNumber} input`).forEach(input => {
+                input.disabled = true;
+            });
+            document.querySelector(`#report-${reportNumber} button`).disabled = true;
+            
+            loadProductionSummary();
+        } else {
+            alert(`Error: ${result.error}`);
+        }
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function loadProductionSummary() {
+    if (!window.currentGrindingJobId) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/api/grinding/summary/${window.currentGrindingJobId}`);
+        const result = await response.json();
+        
+        if (result.success && result.data.reports.length > 0) {
+            const summary = result.data.summary;
+            
+            document.getElementById('summary-content').innerHTML = `
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <h5>Maida</h5>
+                        <div class="value">${summary.total_maida.toFixed(2)} tons</div>
+                        <div class="sub-value">${summary.avg_maida_percent.toFixed(1)}%</div>
+                    </div>
+                    <div class="summary-card">
+                        <h5>Suji</h5>
+                        <div class="value">${summary.total_suji.toFixed(2)} tons</div>
+                        <div class="sub-value">${summary.avg_suji_percent.toFixed(1)}%</div>
+                    </div>
+                    <div class="summary-card">
+                        <h5>Chakki Ata</h5>
+                        <div class="value">${summary.total_chakki.toFixed(2)} tons</div>
+                        <div class="sub-value">${summary.avg_chakki_percent.toFixed(1)}%</div>
+                    </div>
+                    <div class="summary-card">
+                        <h5>Bran</h5>
+                        <div class="value">${summary.total_bran.toFixed(2)} tons</div>
+                        <div class="sub-value">${summary.avg_bran_percent.toFixed(1)}%</div>
+                    </div>
+                </div>
+                <div class="hourly-breakdown">
+                    <h4>Hourly Breakdown</h4>
+                    ${result.data.reports.map(r => `
+                        <div class="hourly-breakdown-item">
+                            <div class="time-range">Hour ${r.report_number} (${r.start_time} - ${r.end_time}) <span class="status-submitted">✓ Submitted</span></div>
+                            <div class="products">
+                                <span>Maida: ${r.maida_tons}t</span>
+                                <span>Suji: ${r.suji_tons}t</span>
+                                <span>Chakki: ${r.chakki_ata_tons}t</span>
+                                <span>Bran: ${r.bran_tons}t</span>
+                                <span>Total: ${r.grand_total_tons}t</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            document.getElementById('production-summary').style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error loading summary:', error);
+    }
+}
 
 loadOrders();

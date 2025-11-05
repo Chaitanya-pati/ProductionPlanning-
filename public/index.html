@@ -19,6 +19,7 @@
             <button class="tab-btn" onclick="showTab('create-plan', this)">Create Plan</button>
             <button class="tab-btn" onclick="showTab('transfer-blended', this)">Transfer PRE→24</button>
             <button class="tab-btn" onclick="showTab('transfer-sequential', this)">Transfer 24→12</button>
+            <button class="tab-btn" onclick="showTab('grinding', this)">Grinding</button>
             <button class="tab-btn" onclick="showTab('products-master', this)">Products Master</button>
             <button class="tab-btn" onclick="showTab('bins-master', this)">Bins Master</button>
         </div>
@@ -149,9 +150,46 @@
                     <div id="sequential-destinations-container"></div>
                 </div>
 
-                <button id="execute-sequential-transfer" class="btn-primary" style="display: none;">Execute Transfer</button>
+                <div id="sequential-transfer-preview" style="display: none;">
+                    <h4>Transfer Preview</h4>
+                    <div id="sequential-bins-preview"></div>
+                    <div class="transfer-controls-container">
+                        <button id="start-sequential-transfer" class="btn-start" style="display: none;">START TRANSFER</button>
+                        <button id="stop-sequential-transfer" class="btn-stop" style="display: none;">STOP TRANSFER</button>
+                    </div>
+                </div>
             </div>
             <div id="sequential-message" class="message"></div>
+        </div>
+
+        <div id="grinding-tab" class="tab-content">
+            <h2>Stage 7: Grinding Process</h2>
+            <p class="hint">Grinding wheat from 12HR bins with hourly production reports.</p>
+            
+            <div id="grinding-order-info" class="order-details"></div>
+            
+            <div id="grinding-controls" style="display: none;">
+                <div id="grinding-bin-info" class="section"></div>
+                
+                <div class="grinding-controls-container">
+                    <button id="start-grinding" class="btn-start">START GRINDING</button>
+                    <button id="stop-grinding" class="btn-stop" style="display: none;">STOP GRINDING</button>
+                </div>
+            </div>
+
+            <div id="hourly-reports-section" style="display: none;">
+                <div class="section">
+                    <h3>Hourly Production Reports</h3>
+                    <div id="hourly-reports-container"></div>
+                </div>
+                
+                <div id="production-summary" class="section" style="display: none;">
+                    <h3>Production Summary</h3>
+                    <div id="summary-content"></div>
+                </div>
+            </div>
+            
+            <div id="grinding-message" class="message"></div>
         </div>
 
         <div id="products-master-tab" class="tab-content">

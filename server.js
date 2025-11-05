@@ -654,6 +654,181 @@ app.get('/api/transfers/:orderId', (req, res) => {
   }
 });
 
+// GRINDING APIs
+
+app.post('/api/grinding/start', (req, res) => {
+  try {
+    const { order_id, bin_ids } = req.body;
+    
+    if (!order_id || !bin_ids || !Array.isArray(bin_ids)) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+    
+    const insertJob = db.prepare(`
+      INSERT INTO grinding_jobs (order_id, grinding_status, grinding_start_time)
+      VALUES (?, 'STARTED', CURRENT_TIMESTAMP)
+    `);
+    const jobResult = insertJob.run(order_id);
+    const grindingJobId = jobResult.lastInsertRowid;
+    
+    const insertBin = db.prepare(`
+      INSERT INTO grinding_source_bins (grinding_job_id, bin_id, bin_sequence_order, status)
+      VALUES (?, ?, ?, ?)
+    `);
+    
+    bin_ids.forEach((binId, index) => {
+      const status = index === 0 ? 'IN_USE' : 'PENDING';
+      insertBin.run(grindingJobId, binId, index + 1, status);
+    });
+    
+    const updateOrder = db.prepare(`
+      UPDATE orders SET production_stage = 'GRINDING_IN_PROGRESS' WHERE id = ?
+    `);
+    updateOrder.run(order_id);
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        grinding_job_id: grindingJobId,
+        status: 'STARTED'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/grinding/stop', (req, res) => {
+  try {
+    const { grinding_job_id } = req.body;
+    
+    if (!grinding_job_id) {
+      return res.status(400).json({ success: false, error: 'Missing grinding_job_id' });
+    }
+    
+    const job = db.prepare('SELECT * FROM grinding_jobs WHERE id = ?').get(grinding_job_id);
+    if (!job) {
+      return res.status(404).json({ success: false, error: 'Grinding job not found' });
+    }
+    
+    const startTime = new Date(job.grinding_start_time);
+    const endTime = new Date();
+    const durationHours = (endTime - startTime) / (1000 * 60 * 60);
+    
+    const updateJob = db.prepare(`
+      UPDATE grinding_jobs 
+      SET grinding_status = 'STOPPED', 
+          grinding_end_time = CURRENT_TIMESTAMP,
+          grinding_duration_hours = ?
+      WHERE id = ?
+    `);
+    updateJob.run(durationHours, grinding_job_id);
+    
+    const updateOrder = db.prepare(`
+      UPDATE orders SET production_stage = 'GRINDING_COMPLETED' WHERE id = ?
+    `);
+    updateOrder.run(job.order_id);
+    
+    res.json({ 
+      success: true, 
+      data: { 
+        status: 'STOPPED',
+        duration_hours: durationHours
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post('/api/grinding/report', (req, res) => {
+  try {
+    const { 
+      grinding_job_id, report_number, start_time, end_time,
+      maida_tons, suji_tons, chakki_ata_tons, tandoori_tons,
+      main_total_tons, bran_tons, grand_total_tons
+    } = req.body;
+    
+    if (!grinding_job_id || !report_number || !start_time || !end_time) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+    
+    const job = db.prepare('SELECT * FROM grinding_jobs WHERE id = ?').get(grinding_job_id);
+    if (!job) {
+      return res.status(404).json({ success: false, error: 'Grinding job not found' });
+    }
+    
+    if (job.grinding_status !== 'STARTED') {
+      return res.status(400).json({ success: false, error: 'Cannot submit reports when grinding is not started' });
+    }
+    
+    const maidaPercent = (maida_tons / grand_total_tons) * 100;
+    const sujiPercent = (suji_tons / grand_total_tons) * 100;
+    const chakkiPercent = (chakki_ata_tons / grand_total_tons) * 100;
+    const tandooriPercent = (tandoori_tons / grand_total_tons) * 100;
+    const mainPercent = (main_total_tons / grand_total_tons) * 100;
+    const branPercent = (bran_tons / grand_total_tons) * 100;
+    
+    const insertReport = db.prepare(`
+      INSERT INTO hourly_reports (
+        grinding_job_id, report_number, start_time, end_time, status,
+        maida_tons, suji_tons, chakki_ata_tons, tandoori_tons,
+        main_total_tons, bran_tons, grand_total_tons,
+        maida_percent, suji_percent, chakki_ata_percent, tandoori_percent,
+        main_total_percent, bran_percent, submitted_at
+      ) VALUES (?, ?, ?, ?, 'SUBMITTED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `);
+    
+    insertReport.run(
+      grinding_job_id, report_number, start_time, end_time,
+      maida_tons, suji_tons, chakki_ata_tons, tandoori_tons,
+      main_total_tons, bran_tons, grand_total_tons,
+      maidaPercent, sujiPercent, chakkiPercent, tandooriPercent,
+      mainPercent, branPercent
+    );
+    
+    res.json({ success: true, data: { report_number, status: 'SUBMITTED' } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.get('/api/grinding/summary/:grindingJobId', (req, res) => {
+  try {
+    const { grindingJobId } = req.params;
+    
+    const reports = db.prepare(`
+      SELECT * FROM hourly_reports 
+      WHERE grinding_job_id = ? AND status = 'SUBMITTED'
+      ORDER BY report_number
+    `).all(grindingJobId);
+    
+    if (reports.length === 0) {
+      return res.json({ success: true, data: { reports: [], summary: null } });
+    }
+    
+    const summary = {
+      total_maida: reports.reduce((sum, r) => sum + r.maida_tons, 0),
+      total_suji: reports.reduce((sum, r) => sum + r.suji_tons, 0),
+      total_chakki: reports.reduce((sum, r) => sum + r.chakki_ata_tons, 0),
+      total_tandoori: reports.reduce((sum, r) => sum + r.tandoori_tons, 0),
+      total_bran: reports.reduce((sum, r) => sum + r.bran_tons, 0),
+      total_main: reports.reduce((sum, r) => sum + r.main_total_tons, 0),
+      grand_total: reports.reduce((sum, r) => sum + r.grand_total_tons, 0),
+      avg_maida_percent: reports.reduce((sum, r) => sum + r.maida_percent, 0) / reports.length,
+      avg_suji_percent: reports.reduce((sum, r) => sum + r.suji_percent, 0) / reports.length,
+      avg_chakki_percent: reports.reduce((sum, r) => sum + r.chakki_ata_percent, 0) / reports.length,
+      avg_tandoori_percent: reports.reduce((sum, r) => sum + r.tandoori_percent, 0) / reports.length,
+      avg_bran_percent: reports.reduce((sum, r) => sum + r.bran_percent, 0) / reports.length,
+      avg_main_percent: reports.reduce((sum, r) => sum + r.main_total_percent, 0) / reports.length
+    };
+    
+    res.json({ success: true, data: { reports, summary } });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
