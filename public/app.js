@@ -889,7 +889,7 @@ async function loadPlansForBlendedTransfer() {
             if (allPlans.length > 0) {
                 select.innerHTML = '<option value="">Select a plan</option>' + 
                     allPlans.map(plan => 
-                        `<option value="${plan.id}" data-order-id="${plan.order_id}">${plan.plan_name} (Order: ${plan.order_number})</option>`
+                        `<option value="${plan.id}" data-order-id="${plan.order_id}">${plan.description || 'Production Plan'} (Order: ${plan.order_number})</option>`
                     ).join('');
             } else {
                 select.innerHTML = '<option value="">No plans found</option>';
@@ -986,7 +986,6 @@ async function renderBlendedDestinations(plan, orderId) {
                                     <span class="quantity-value">0 tons</span>
                                 </div>
                             </div>
-                            
                             <div class="transfer-controls">
                                 <button class="btn-start" onclick="startBlendedTransfer('${dest.bin_id}', '${plan.id}', '${orderId}')">START</button>
                                 <button class="btn-stop" onclick="stopBlendedTransfer('${dest.bin_id}', '${plan.id}', '${orderId}')" style="display: none;">STOP</button>
