@@ -4,6 +4,39 @@ let sourceBins = [];
 let destinationBins = [];
 let allBins = [];
 
+const transferTimers = {};
+
+function startTimer(transferKey, timerElement) {
+    const startTime = Date.now();
+    transferTimers[transferKey] = {
+        startTime: startTime,
+        interval: setInterval(() => {
+            const elapsed = Date.now() - startTime;
+            const hours = Math.floor(elapsed / 3600000);
+            const minutes = Math.floor((elapsed % 3600000) / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            timerElement.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }, 1000)
+    };
+}
+
+function stopTimer(transferKey) {
+    if (transferTimers[transferKey]) {
+        clearInterval(transferTimers[transferKey].interval);
+        const elapsed = Date.now() - transferTimers[transferKey].startTime;
+        delete transferTimers[transferKey];
+        return elapsed;
+    }
+    return 0;
+}
+
+function formatDuration(milliseconds) {
+    const hours = Math.floor(milliseconds / 3600000);
+    const minutes = Math.floor((milliseconds % 3600000) / 60000);
+    const seconds = Math.floor((milliseconds % 60000) / 1000);
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
 function showTab(tabName, clickedElement) {
     document.querySelectorAll('.tab-content').forEach(tab => {
         tab.classList.remove('active');
@@ -944,6 +977,10 @@ async function renderBlendedDestinations(plan, orderId) {
                                     <span class="status-label">Status:</span>
                                     <span class="status-value">Ready</span>
                                 </div>
+                                <div class="timer-display" style="display: none;">
+                                    <span class="timer-label">Duration:</span>
+                                    <span class="timer-value">00:00:00</span>
+                                </div>
                                 <div class="quantity-display">
                                     <span class="quantity-label">Transferred:</span>
                                     <span class="quantity-value">0 tons</span>
@@ -1013,6 +1050,8 @@ async function startBlendedTransfer(destBinId, planId, orderId) {
     const startBtn = item.querySelector('.btn-start');
     const stopBtn = item.querySelector('.btn-stop');
     const statusValue = item.querySelector('.status-value');
+    const timerDisplay = item.querySelector('.timer-display');
+    const timerValue = item.querySelector('.timer-value');
 
     startBtn.disabled = true;
     statusValue.textContent = 'Transferring...';
@@ -1035,6 +1074,10 @@ async function startBlendedTransfer(destBinId, planId, orderId) {
             startBtn.style.display = 'none';
             stopBtn.style.display = 'inline-block';
             statusValue.textContent = 'In Progress';
+            
+            timerDisplay.style.display = 'block';
+            const transferKey = `blended-${destBinId}-${planId}`;
+            startTimer(transferKey, timerValue);
 
             const messageEl = document.getElementById('blended-message');
             messageEl.className = 'message success';
@@ -1062,6 +1105,7 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
     const stopBtn = item.querySelector('.btn-stop');
     const statusValue = item.querySelector('.status-value');
     const quantityValue = item.querySelector('.quantity-value');
+    const timerValue = item.querySelector('.timer-value');
 
     if (!confirm('Stop the transfer for this bin?')) {
         return;
@@ -1069,6 +1113,9 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
 
     stopBtn.disabled = true;
     statusValue.textContent = 'Stopping...';
+    
+    const transferKey = `blended-${destBinId}-${planId}`;
+    const elapsedMillis = stopTimer(transferKey);
 
     try {
         const response = await fetch(`${API_URL}/api/transfers/blended/stop`, {
@@ -1089,10 +1136,12 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
             statusValue.textContent = 'Completed';
             statusValue.className = 'status-value completed';
             quantityValue.textContent = `${result.data.transferred_quantity} tons`;
+            
+            timerValue.textContent = formatDuration(elapsedMillis);
 
             const messageEl = document.getElementById('blended-message');
             messageEl.className = 'message success';
-            messageEl.textContent = `Transfer completed for bin ${destBinId}: ${result.data.transferred_quantity} tons transferred`;
+            messageEl.textContent = `Transfer completed for bin ${destBinId}: ${result.data.transferred_quantity} tons transferred in ${formatDuration(elapsedMillis)}`;
             setTimeout(() => messageEl.style.display = 'none', 3000);
         } else {
             throw new Error(result.error);
@@ -1378,6 +1427,12 @@ document.getElementById('start-sequential-transfer').addEventListener('click', a
             document.getElementById('sequential-transfer-status').style.display = 'block';
             document.getElementById('transfer-status-text').textContent = 'IN PROGRESS';
             document.getElementById('transfer-status-text').className = 'status-value transferring';
+            
+            const timerDisplay = document.getElementById('sequential-timer-display');
+            const timerValue = document.getElementById('sequential-timer-value');
+            timerDisplay.style.display = 'block';
+            const transferKey = `sequential-${currentSequentialJobId}`;
+            startTimer(transferKey, timerValue);
         } else {
             messageEl.className = 'message error';
             messageEl.textContent = `Error: ${result.error}`;
@@ -1396,6 +1451,9 @@ document.getElementById('stop-sequential-transfer').addEventListener('click', as
     }
 
     const orderId = document.getElementById('sequential_order_id').value;
+    
+    const transferKey = `sequential-${currentSequentialJobId}`;
+    const elapsedMillis = stopTimer(transferKey);
 
     // Show moisture input dialog
     const outgoingMoisture = prompt('Enter outgoing moisture percentage (optional):');
@@ -1427,7 +1485,7 @@ document.getElementById('stop-sequential-transfer').addEventListener('click', as
 
         if (result.success) {
             messageEl.className = 'message success';
-            let detailMsg = `Transfer completed! ${result.data.total_transferred} tons transferred.`;
+            let detailMsg = `Transfer completed! ${result.data.total_transferred} tons transferred in ${formatDuration(elapsedMillis)}.`;
             if (result.data.distribution_details) {
                 detailMsg += '\n\nDistribution:';
                 result.data.distribution_details.forEach(d => {
@@ -1442,6 +1500,9 @@ document.getElementById('stop-sequential-transfer').addEventListener('click', as
             }
             messageEl.textContent = detailMsg;
             messageEl.style.whiteSpace = 'pre-line';
+            
+            const timerValue = document.getElementById('sequential-timer-value');
+            timerValue.textContent = formatDuration(elapsedMillis);
 
             document.getElementById('stop-sequential-transfer').style.display = 'none';
             document.getElementById('transfer-status-text').textContent = 'COMPLETED';
@@ -1814,6 +1875,20 @@ document.getElementById('start-grinding').addEventListener('click', async functi
     if (!confirm('Start grinding process? This will enable hourly report entry.')) {
         return;
     }
+    
+    const binMoistureData = {};
+    for (const bin of window.current12HRBins) {
+        const binName = `${bin.bin_name} (${bin.identity_number})`;
+        const outgoingMoisture = prompt(`Enter outgoing moisture percentage for ${binName} (optional):`);
+        const waterAdded = prompt(`Enter water added in liters for ${binName} (optional):`);
+        
+        if (outgoingMoisture || waterAdded) {
+            binMoistureData[bin.id] = {
+                outgoing_moisture: outgoingMoisture ? parseFloat(outgoingMoisture) : null,
+                water_added: waterAdded ? parseFloat(waterAdded) : null
+            };
+        }
+    }
 
     try {
         const response = await fetch(`${API_URL}/api/grinding/start`, {
@@ -1821,7 +1896,8 @@ document.getElementById('start-grinding').addEventListener('click', async functi
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 order_id: window.currentGrindingOrder.id,
-                bin_ids: window.current12HRBins.map(b => b.id)
+                bin_ids: window.current12HRBins.map(b => b.id),
+                bin_moisture_data: binMoistureData
             })
         });
 
