@@ -321,7 +321,7 @@ function addDestinationBinRow() {
             <option value="">Select Bin</option>
             ${destinationBins.map(bin => `<option value="${bin.id}">${bin.bin_name} (${bin.identity_number})</option>`).join('')}
         </select>
-        <input type="number" class="dest-quantity-input" data-row-id="${rowId}" step="0.01" placeholder="Tons" required>
+        <input type="number" class="dest-quantity-input" data-row-id="${rowId}" step="0.01" required>
         <span>tons</span>
         <button type="button" class="remove-bin-btn" onclick="removeDestinationBinRow('${rowId}')">Remove</button>
     `;
@@ -505,7 +505,7 @@ async function loadFinishedGoods() {
 async function editFinishedGood(id, productName, initialName) {
     const newProductName = prompt('Edit Product Name:', productName);
     const newInitialName = prompt('Edit Initial Name:', initialName);
-    
+
     if (!newProductName || !newInitialName) {
         alert('Both fields are required');
         return;
@@ -531,24 +531,45 @@ async function editFinishedGood(id, productName, initialName) {
 }
 
 async function deleteFinishedGood(id, productName) {
-    if (!confirm(`Delete "${productName}"? This action cannot be undone.`)) {
-        return;
-    }
+    const deleteFormContainer = document.getElementById('delete-confirm-container');
+    deleteFormContainer.innerHTML = `
+        <div class="edit-form-overlay">
+            <div class="edit-form-modal delete-confirm-modal">
+                <h3>⚠️ Confirm Delete</h3>
+                <p>Are you sure you want to delete <strong>"${productName}"</strong>?</p>
+                <p class="warning-text">This action cannot be undone.</p>
+                <div class="form-actions">
+                    <button class="btn-delete" onclick="confirmDeleteFinishedGood(${id})">Delete</button>
+                    <button class="btn-secondary" onclick="closeDeleteConfirm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    deleteFormContainer.style.display = 'block';
+}
 
+async function confirmDeleteFinishedGood(id) {
     try {
         const response = await fetch(`${API_URL}/api/finished-goods/${id}`, {
             method: 'DELETE'
         });
 
         const result = await response.json();
+        const messageEl = document.getElementById('finished-good-message');
+
         if (result.success) {
-            alert('Finished good deleted successfully!');
+            messageEl.className = 'message success';
+            messageEl.textContent = 'Finished good deleted successfully!';
+            closeDeleteConfirm();
             loadFinishedGoods();
         } else {
-            alert(`Error: ${result.error}`);
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        const messageEl = document.getElementById('finished-good-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
     }
 }
 
@@ -582,7 +603,7 @@ async function loadRawProducts() {
 
 async function editRawProduct(id, productName) {
     const newProductName = prompt('Edit Product Name:', productName);
-    
+
     if (!newProductName) {
         alert('Product name is required');
         return;
@@ -608,24 +629,45 @@ async function editRawProduct(id, productName) {
 }
 
 async function deleteRawProduct(id, productName) {
-    if (!confirm(`Delete "${productName}"? This action cannot be undone.`)) {
-        return;
-    }
+    const deleteFormContainer = document.getElementById('delete-confirm-container');
+    deleteFormContainer.innerHTML = `
+        <div class="edit-form-overlay">
+            <div class="edit-form-modal delete-confirm-modal">
+                <h3>⚠️ Confirm Delete</h3>
+                <p>Are you sure you want to delete <strong>"${productName}"</strong>?</p>
+                <p class="warning-text">This action cannot be undone.</p>
+                <div class="form-actions">
+                    <button class="btn-delete" onclick="confirmDeleteRawProduct(${id})">Delete</button>
+                    <button class="btn-secondary" onclick="closeDeleteConfirm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    deleteFormContainer.style.display = 'block';
+}
 
+async function confirmDeleteRawProduct(id) {
     try {
         const response = await fetch(`${API_URL}/api/raw-products/${id}`, {
             method: 'DELETE'
         });
 
         const result = await response.json();
+        const messageEl = document.getElementById('raw-product-message');
+
         if (result.success) {
-            alert('Raw product deleted successfully!');
+            messageEl.className = 'message success';
+            messageEl.textContent = 'Raw product deleted successfully!';
+            closeDeleteConfirm();
             loadRawProducts();
         } else {
-            alert(`Error: ${result.error}`);
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        const messageEl = document.getElementById('raw-product-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
     }
 }
 
@@ -745,23 +787,23 @@ async function editBin(id) {
     try {
         const response = await fetch(`${API_URL}/api/bins/${id}`);
         const result = await response.json();
-        
+
         if (!result.success) {
             alert('Error loading bin data');
             return;
         }
-        
+
         const bin = result.data;
-        
+
         const newBinName = prompt('Edit Bin Name:', bin.bin_name);
         if (!newBinName) return;
-        
+
         const newIdentityNumber = prompt('Edit Identity Number:', bin.identity_number);
         if (!newIdentityNumber) return;
-        
+
         const newCapacity = prompt('Edit Capacity (tons):', bin.capacity);
         if (!newCapacity) return;
-        
+
         const newCurrentQuantity = prompt('Edit Current Quantity (tons):', bin.current_quantity);
         if (newCurrentQuantity === null) return;
 
@@ -790,24 +832,45 @@ async function editBin(id) {
 }
 
 async function deleteBin(id, binName) {
-    if (!confirm(`Delete "${binName}"? This action cannot be undone.`)) {
-        return;
-    }
+    const deleteFormContainer = document.getElementById('delete-confirm-container');
+    deleteFormContainer.innerHTML = `
+        <div class="edit-form-overlay">
+            <div class="edit-form-modal delete-confirm-modal">
+                <h3>⚠️ Confirm Delete</h3>
+                <p>Are you sure you want to delete <strong>"${binName}"</strong>?</p>
+                <p class="warning-text">This action cannot be undone.</p>
+                <div class="form-actions">
+                    <button class="btn-delete" onclick="confirmDeleteBin(${id})">Delete</button>
+                    <button class="btn-secondary" onclick="closeDeleteConfirm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    deleteFormContainer.style.display = 'block';
+}
 
+async function confirmDeleteBin(id) {
     try {
         const response = await fetch(`${API_URL}/api/bins/${id}`, {
             method: 'DELETE'
         });
 
         const result = await response.json();
+        const messageEl = document.getElementById('bin-message');
+
         if (result.success) {
-            alert('Bin deleted successfully!');
+            messageEl.className = 'message success';
+            messageEl.textContent = 'Bin deleted successfully!';
+            closeDeleteConfirm();
             loadBins();
         } else {
-            alert(`Error: ${result.error}`);
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        const messageEl = document.getElementById('bin-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
     }
 }
 
@@ -1074,7 +1137,7 @@ async function startBlendedTransfer(destBinId, planId, orderId) {
             startBtn.style.display = 'none';
             stopBtn.style.display = 'inline-block';
             statusValue.textContent = 'In Progress';
-            
+
             timerDisplay.style.display = 'block';
             const transferKey = `blended-${destBinId}-${planId}`;
             startTimer(transferKey, timerValue);
@@ -1113,7 +1176,7 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
 
     stopBtn.disabled = true;
     statusValue.textContent = 'Stopping...';
-    
+
     const transferKey = `blended-${destBinId}-${planId}`;
     const elapsedMillis = stopTimer(transferKey);
 
@@ -1136,7 +1199,7 @@ async function stopBlendedTransfer(destBinId, planId, orderId) {
             statusValue.textContent = 'Completed';
             statusValue.className = 'status-value completed';
             quantityValue.textContent = `${result.data.transferred_quantity} tons`;
-            
+
             timerValue.textContent = formatDuration(elapsedMillis);
 
             const messageEl = document.getElementById('blended-message');
@@ -1418,7 +1481,7 @@ document.getElementById('start-sequential-transfer').addEventListener('click', a
 
         if (result.success) {
             currentSequentialJobId = result.data.job_id;
-            
+
             messageEl.className = 'message success';
             messageEl.textContent = 'Transfer started! Fill in the optional details below and click STOP when complete.';
 
@@ -1428,7 +1491,7 @@ document.getElementById('start-sequential-transfer').addEventListener('click', a
             document.getElementById('sequential-moisture-inputs').style.display = 'block';
             document.getElementById('transfer-status-text').textContent = 'IN PROGRESS';
             document.getElementById('transfer-status-text').className = 'status-value transferring';
-            
+
             const timerDisplay = document.getElementById('sequential-timer-display');
             const timerValue = document.getElementById('sequential-timer-value');
             timerDisplay.style.display = 'block';
@@ -1452,7 +1515,7 @@ document.getElementById('stop-sequential-transfer').addEventListener('click', as
     }
 
     const orderId = document.getElementById('sequential_order_id').value;
-    
+
     const transferKey = `sequential-${currentSequentialJobId}`;
     const elapsedMillis = stopTimer(transferKey);
 
@@ -1501,7 +1564,7 @@ document.getElementById('stop-sequential-transfer').addEventListener('click', as
             }
             messageEl.textContent = detailMsg;
             messageEl.style.whiteSpace = 'pre-line';
-            
+
             const timerValue = document.getElementById('sequential-timer-value');
             timerValue.textContent = formatDuration(elapsedMillis);
 
@@ -1899,7 +1962,7 @@ document.getElementById('start-grinding').addEventListener('click', async functi
     window.current12HRBins.forEach(bin => {
         const moisture = document.getElementById(`bin_${bin.id}_moisture`)?.value;
         const water = document.getElementById(`bin_${bin.id}_water`)?.value;
-        
+
         if (moisture || water) {
             hasData = true;
             binMoistureData[bin.id] = {
@@ -1980,7 +2043,7 @@ document.getElementById('stop-grinding').addEventListener('click', async functio
             document.querySelectorAll('.hourly-report-card button').forEach(btn => {
                 btn.disabled = true;
             });
-            
+
             document.querySelectorAll('#lab-test-form input, #lab-test-form select, #lab-test-form button').forEach(el => {
                 el.disabled = true;
             });
@@ -2240,7 +2303,7 @@ async function loadLabTests() {
         const result = await response.json();
 
         const listEl = document.getElementById('lab-tests-list');
-        
+
         if (result.success && result.data.length > 0) {
             listEl.innerHTML = `
                 <table class="data-table">
@@ -2274,22 +2337,22 @@ async function loadLabTests() {
 
 document.getElementById('lab-test-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    
+
     if (!window.currentGrindingJobId) {
         alert('No grinding job active');
         return;
     }
-    
+
     const startTime = document.getElementById('lab_start_time').value;
     const endTime = document.getElementById('lab_end_time').value;
     const productType = document.getElementById('lab_product_type').value;
     const moisture = parseFloat(document.getElementById('lab_moisture').value);
-    
+
     if (!startTime || !endTime || !productType || isNaN(moisture)) {
         alert('Please fill all fields');
         return;
     }
-    
+
     try {
         const response = await fetch(`${API_URL}/api/grinding/lab-test`, {
             method: 'POST',
@@ -2302,18 +2365,18 @@ document.getElementById('lab-test-form').addEventListener('submit', async functi
                 moisture: moisture
             })
         });
-        
+
         const result = await response.json();
-        
+
         if (result.success) {
             const messageEl = document.getElementById('lab-test-message');
             messageEl.className = 'message success';
             messageEl.textContent = 'Lab test submitted successfully!';
-            
+
             document.getElementById('lab-test-form').reset();
-            
+
             loadLabTests();
-            
+
             setTimeout(() => {
                 messageEl.textContent = '';
             }, 3000);
@@ -2363,23 +2426,23 @@ async function editGodown(id) {
     try {
         const response = await fetch(`${API_URL}/api/godowns/${id}`);
         const result = await response.json();
-        
+
         if (!result.success) {
             alert('Error loading godown data');
             return;
         }
-        
+
         const godown = result.data;
-        
+
         const newGodownName = prompt('Edit Godown Name:', godown.godown_name);
         if (!newGodownName) return;
-        
+
         const newGodownCode = prompt('Edit Godown Code:', godown.godown_code);
         if (!newGodownCode) return;
-        
+
         const newCapacity = prompt('Edit Capacity (tons):', godown.capacity);
         if (!newCapacity) return;
-        
+
         const newLocation = prompt('Edit Location:', godown.location || '');
 
         const updateResponse = await fetch(`${API_URL}/api/godowns/${id}`, {
@@ -2406,24 +2469,45 @@ async function editGodown(id) {
 }
 
 async function deleteGodown(id, godownName) {
-    if (!confirm(`Delete "${godownName}"? This action cannot be undone.`)) {
-        return;
-    }
+    const deleteFormContainer = document.getElementById('delete-confirm-container');
+    deleteFormContainer.innerHTML = `
+        <div class="edit-form-overlay">
+            <div class="edit-form-modal delete-confirm-modal">
+                <h3>⚠️ Confirm Delete</h3>
+                <p>Are you sure you want to delete <strong>"${godownName}"</strong>?</p>
+                <p class="warning-text">This action cannot be undone.</p>
+                <div class="form-actions">
+                    <button class="btn-delete" onclick="confirmDeleteGodown(${id})">Delete</button>
+                    <button class="btn-secondary" onclick="closeDeleteConfirm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    deleteFormContainer.style.display = 'block';
+}
 
+async function confirmDeleteGodown(id) {
     try {
         const response = await fetch(`${API_URL}/api/godowns/${id}`, {
             method: 'DELETE'
         });
 
         const result = await response.json();
+        const messageEl = document.getElementById('godown-message');
+
         if (result.success) {
-            alert('Godown deleted successfully!');
+            messageEl.className = 'message success';
+            messageEl.textContent = 'Godown deleted successfully!';
+            closeDeleteConfirm();
             loadGodowns();
         } else {
-            alert(`Error: ${result.error}`);
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        const messageEl = document.getElementById('godown-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
     }
 }
 
@@ -2521,20 +2605,20 @@ async function editShallow(id) {
     try {
         const response = await fetch(`${API_URL}/api/shallows/${id}`);
         const result = await response.json();
-        
+
         if (!result.success) {
             alert('Error loading shallow data');
             return;
         }
-        
+
         const shallow = result.data;
-        
+
         const newShallowName = prompt('Edit Shallow Name:', shallow.shallow_name);
         if (!newShallowName) return;
-        
+
         const newShallowCode = prompt('Edit Shallow Code:', shallow.shallow_code);
         if (!newShallowCode) return;
-        
+
         const newCapacity = prompt('Edit Capacity (tons):', shallow.capacity);
         if (!newCapacity) return;
 
@@ -2561,24 +2645,45 @@ async function editShallow(id) {
 }
 
 async function deleteShallow(id, shallowName) {
-    if (!confirm(`Delete "${shallowName}"? This action cannot be undone.`)) {
-        return;
-    }
+    const deleteFormContainer = document.getElementById('delete-confirm-container');
+    deleteFormContainer.innerHTML = `
+        <div class="edit-form-overlay">
+            <div class="edit-form-modal delete-confirm-modal">
+                <h3>⚠️ Confirm Delete</h3>
+                <p>Are you sure you want to delete <strong>"${shallowName}"</strong>?</p>
+                <p class="warning-text">This action cannot be undone.</p>
+                <div class="form-actions">
+                    <button class="btn-delete" onclick="confirmDeleteShallow(${id})">Delete</button>
+                    <button class="btn-secondary" onclick="closeDeleteConfirm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    deleteFormContainer.style.display = 'block';
+}
 
+async function confirmDeleteShallow(id) {
     try {
         const response = await fetch(`${API_URL}/api/shallows/${id}`, {
             method: 'DELETE'
         });
 
         const result = await response.json();
+        const messageEl = document.getElementById('shallow-message');
+
         if (result.success) {
-            alert('Shallow deleted successfully!');
+            messageEl.className = 'message success';
+            messageEl.textContent = 'Shallow deleted successfully!';
+            closeDeleteConfirm();
             loadShallows();
         } else {
-            alert(`Error: ${result.error}`);
+            messageEl.className = 'message error';
+            messageEl.textContent = `Error: ${result.error}`;
         }
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        const messageEl = document.getElementById('shallow-message');
+        messageEl.className = 'message error';
+        messageEl.textContent = `Error: ${error.message}`;
     }
 }
 
@@ -2837,40 +2942,6 @@ document.getElementById('packaging_order_id')?.addEventListener('change', async 
         alert('Error loading order details');
     }
 });
-
-function toggleShallowSelection() {
-    const packagingSource = document.querySelector('input[name="packaging_source"]:checked');
-    if (!packagingSource) return;
-
-    const productType = packagingSource.value === 'order' 
-        ? document.getElementById('packaging_product_type').value 
-        : 'MAIDA'; // From shallow is always MAIDA
-
-    const maidaOptions = document.getElementById('maida-storage-options');
-    const bagSection = document.getElementById('bag-packaging-section');
-    const shallowSelectionDiv = document.getElementById('shallow-selection');
-
-    if (packagingSource.value === 'order') {
-        if (productType === 'MAIDA') {
-            maidaOptions.style.display = 'block';
-            bagSection.style.display = 'none';
-            if (shallowSelectionDiv) {
-                shallowSelectionDiv.style.display = 'none';
-            }
-            document.querySelectorAll('input[name="maida_storage_method"]').forEach(radio => radio.checked = false);
-        } else if (productType) {
-            maidaOptions.style.display = 'none';
-            bagSection.style.display = 'block';
-        } else {
-            maidaOptions.style.display = 'none';
-            bagSection.style.display = 'none';
-        }
-    } else {
-        // From shallow - always bags
-        maidaOptions.style.display = 'none';
-        bagSection.style.display = 'block';
-    }
-}
 
 function toggleMaidaStorageMethod() {
     const selectedMethod = document.querySelector('input[name="maida_storage_method"]:checked');

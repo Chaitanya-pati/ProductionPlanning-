@@ -997,6 +997,118 @@ body {
     margin-bottom: 15px;
     display: grid;
     grid-template-columns: 2fr 1fr 140px;
+
+.edit-form-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.edit-form-modal {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    min-width: 500px;
+    max-width: 600px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.edit-form-modal h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #2c3e50;
+    font-size: 24px;
+}
+
+.edit-form-modal .form-group {
+    margin-bottom: 20px;
+}
+
+.edit-form-modal .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #34495e;
+}
+
+.edit-form-modal .form-group input,
+.edit-form-modal .form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+.edit-form-modal .form-group input:focus,
+.edit-form-modal .form-group select:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 25px;
+}
+
+.form-actions button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-secondary {
+    background: #95a5a6;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background: #7f8c8d;
+}
+
+.delete-confirm-modal {
+    max-width: 450px;
+    text-align: center;
+}
+
+.delete-confirm-modal h3 {
+    color: #e74c3c;
+}
+
+.delete-confirm-modal p {
+    margin: 15px 0;
+    font-size: 16px;
+}
+
+.warning-text {
+    color: #e74c3c;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.btn-delete {
+    background: #e74c3c !important;
+    color: white;
+}
+
+.btn-delete:hover {
+    background: #c0392b !important;
+}
+
     gap: 18px;
     align-items: center;
     transition: all 0.3s ease;
