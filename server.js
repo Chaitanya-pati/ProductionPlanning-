@@ -935,11 +935,28 @@ app.post('/api/transfers/sequential/stop', (req, res) => {
     `);
     updateJob.run(outgoing_moisture || null, water_added || null, job_id);
 
-    // Update order status
-    const updateOrder = db.prepare(`
-      UPDATE orders SET production_stage = 'TRANSFER_24_TO_12_COMPLETED' WHERE id = ?
-    `);
-    updateOrder.run(order_id);
+    // Check if ALL 24HR bins from the plan have been fully transferred before marking order complete
+    const plan = db.prepare('SELECT * FROM production_plans WHERE order_id = ?').get(order_id);
+    let allBinsTransferred = false;
+    
+    if (plan) {
+      const all24HRBins = db.prepare(`
+        SELECT b.* 
+        FROM plan_destination_distribution pdd
+        JOIN bins b ON pdd.destination_bin_id = b.id
+        WHERE pdd.plan_id = ? AND b.bin_type = '24HR'
+      `).all(plan.id);
+      
+      allBinsTransferred = all24HRBins.every(bin => bin.current_quantity < 0.01);
+    }
+
+    // Only update order status if all 24HR bins from the plan are empty
+    if (allBinsTransferred) {
+      const updateOrder = db.prepare(`
+        UPDATE orders SET production_stage = 'TRANSFER_24_TO_12_COMPLETED' WHERE id = ?
+      `);
+      updateOrder.run(order_id);
+    }
 
     res.json({ 
       success: true, 
@@ -949,7 +966,8 @@ app.post('/api/transfers/sequential/stop', (req, res) => {
         total_transferred: totalTransferred,
         distribution_details: distributionDetails,
         outgoing_moisture,
-        water_added
+        water_added,
+        all_bins_transferred: allBinsTransferred
       }
     });
   } catch (error) {
