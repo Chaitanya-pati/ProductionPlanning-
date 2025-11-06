@@ -1857,8 +1857,23 @@ async function initGrindingModule() {
 
             document.getElementById('grinding-bin-info').innerHTML = `
                 <h4>Source 12HR Bins (Sequential Usage)</h4>
+                <p class="hint">Enter outgoing moisture and water added for each bin before starting</p>
                 ${filled12HRBins.map((bin, index) => `
-                    <p><strong>Bin ${index + 1}:</strong> ${bin.bin_name} (${bin.identity_number}) - ${bin.current_quantity.toFixed(2)} tons</p>
+                    <div class="bin-moisture-card">
+                        <div class="bin-header">
+                            <strong>Bin ${index + 1}:</strong> ${bin.bin_name} (${bin.identity_number}) - ${bin.current_quantity.toFixed(2)} tons
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Outgoing Moisture (%):</label>
+                                <input type="number" id="bin_${bin.id}_moisture" step="0.01" placeholder="e.g., 12.5" class="bin-moisture-input" data-bin-id="${bin.id}">
+                            </div>
+                            <div class="form-group">
+                                <label>Water Added (litres):</label>
+                                <input type="number" id="bin_${bin.id}_water" step="0.01" placeholder="e.g., 100" class="bin-water-input" data-bin-id="${bin.id}">
+                            </div>
+                        </div>
+                    </div>
                 `).join('')}
             `;
 
@@ -1878,6 +1893,22 @@ document.getElementById('start-grinding').addEventListener('click', async functi
         return;
     }
 
+    const binMoistureData = {};
+    let hasData = false;
+
+    window.current12HRBins.forEach(bin => {
+        const moisture = document.getElementById(`bin_${bin.id}_moisture`)?.value;
+        const water = document.getElementById(`bin_${bin.id}_water`)?.value;
+        
+        if (moisture || water) {
+            hasData = true;
+            binMoistureData[bin.id] = {
+                outgoing_moisture: moisture ? parseFloat(moisture) : null,
+                water_added: water ? parseFloat(water) : null
+            };
+        }
+    });
+
     if (!confirm('Start grinding process? This will enable hourly report entry.')) {
         return;
     }
@@ -1888,7 +1919,8 @@ document.getElementById('start-grinding').addEventListener('click', async functi
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 order_id: window.currentGrindingOrder.id,
-                bin_ids: window.current12HRBins.map(b => b.id)
+                bin_ids: window.current12HRBins.map(b => b.id),
+                bin_moisture_data: hasData ? binMoistureData : null
             })
         });
 

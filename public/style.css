@@ -344,6 +344,28 @@ body {
     border-left: 3px solid #667eea;
 }
 
+.bin-moisture-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border: 1.5px solid #e2e8f0;
+    transition: all 0.3s ease;
+}
+
+.bin-moisture-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+}
+
+.bin-moisture-card .bin-header {
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #2d3748;
+    font-size: 0.95em;
+}
+
 .blend-grid,
 .dist-grid {
     display: grid;
